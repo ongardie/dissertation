@@ -1,6 +1,12 @@
+% For book printing, change to:
+% \documentclass[11pt,twoside]{report}
 \documentclass[11pt]{report}
 
 \usepackage{suthesis-2e-mod}
+
+%% draw grid on page, useful for debugging margins
+%\usepackage{pagegrid}
+%\pagegridsetup{top-left,step=.5in}
 
 \usepackage{epsfig}
 \usepackage[hyphens]{url}
@@ -40,6 +46,9 @@
 \frenchspacing
 
 \usepackage{caption}
+
+% make links black for book printing
+\ifbool{@twoside}{\hypersetup{hidelinks}}{}
 
 % for subfigure environment, where refs look like Figure 9.8(c)
 \usepackage[labelformat=simple]{subcaption}
@@ -210,6 +219,25 @@ videos about Raft and an interactive visualization of Raft.
 \newcommand{\vcaption}[2][Figure]{
   \caption[\Chaptername: #1]{#2}
 }
+
+% These terrible hacks make the chapter/appendix/bibliography name
+% appear on odd-sided pages rather than the section name. I prefer this
+% since some of my section names are too big to fit.
+\makeatletter
+\def\sectionmark#1{%
+  }
+\def\Chaptermark#1{%
+  \markboth {\MakeUppercase{%
+    \ifnum \c@secnumdepth >\m@ne
+        \@chapapp\ \thechapter. \ %
+    \fi
+    #1}}{\MakeUppercase{%
+    \ifnum \c@secnumdepth >\m@ne
+        \@chapapp\ \thechapter. \ %
+    \fi
+    #1}}}%
+\let\@mkboth\markboth
+\makeatother
 
 
 \newcommand\cold{$C_\text{old}$}

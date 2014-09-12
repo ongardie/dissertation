@@ -107,6 +107,7 @@
 
 % Modified Sep 2014 by Diego Ongaro
 %   Added list of tables and list of figures to table of contents.
+%   Changed \cleardoublepage after signature page to \clearpage.
 %   Renamed from suthesis-2e.sty to suthesis-2e-mod.sty to comply with license.
 
 %%%%%
@@ -535,7 +536,7 @@ of Doctor of Philosophy.
         \ifonline\setcounter{page}{4}\else
         \ifcopyright\ifthesiscopyright\thesiscopyrightpage\else\tradcopyrightpage\fi\fi
         \signaturepage\fi
-        \cleardoublepage}
+        \clearpage}
         
 
 \def\prefacesection#1{%
