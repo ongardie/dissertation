@@ -1,0 +1,417 @@
+\section{Availability}
+\label{membership:availability}
+
+Cluster membership changes introduce several issues in preserving the
+cluster's availability.
+%
+Section~\ref{membership:availability:catchup} discusses catching up new
+servers before they're added to the cluster, so that they do not stall
+commitment of new log entries;
+%
+Section~\ref{membership:availability:removing} addresses how to phase
+out an existing leader if it is removed from the cluster; and
+%
+Section~\ref{membership:availability:disruptive} describes how to
+prevent removed servers from disrupting the leader of the new cluster.
+%
+Finally, Section~\ref{membership:availability:argument} closes with an
+argument for why the resulting membership change algorithm is sufficient
+to preserve availability during any membership change.
+
+
+\subsection{Catching up new servers}
+\label{membership:availability:catchup}
+
+\begin{figure}
+\centering
+
+\begin{subfigure}{.45\textwidth}
+\centering
+\includegraphics[scale=1]{membership/catchupone}
+\caption{
+Failure of S3 while adding S4.
+}
+\label{fig:membership:catchupone}
+\end{subfigure}
+~
+\begin{subfigure}{.45\textwidth}
+\centering
+\includegraphics[scale=1]{membership/catchupmany}
+\caption{
+Adding S3--S6 in quick succession.
+}
+\label{fig:membership:catchupmany}
+\end{subfigure}
+
+\vcaption[how adding servers can put availability at risk]{
+Examples of how adding servers with empty logs can put availability at
+risk. The figures show the servers' logs in two different clusters. Each
+cluster starts out with three servers, S1--S3.
+%
+In~\subref{fig:membership:catchupone}, S4 is added, then S3 fails. The
+cluster should be able to operate normally after one failure, but it
+loses availability: it needs three of the four servers to commit a new
+entry, but S3 has failed and S4's log is too far behind to append new
+entries.
+%
+In~\subref{fig:membership:catchupmany}, S4--S6 are added in quick
+succession. Committing the configuration entry that adds S6 (the third
+new server) requires four servers' logs to store that entry, but S4--S6
+have logs that are far behind.
+%
+Neither cluster will be available until the new servers' logs are caught
+up.
+}
+\end{figure}
+
+When a server is added to the cluster, it typically will not store any
+log entries. If it is added to the cluster in this state, its log could
+take quite a while to catch up to the leader's, and during this time,
+the cluster is more vulnerable to unavailability. For
+example, a three-server cluster can normally tolerate one failure with
+no loss in availability. However, if a fourth server with an empty log
+is added to the same cluster and one of the original three servers
+fails, the cluster will be temporarily unable to commit new entries (see
+Figure~\ref{fig:membership:catchupone}). Another availability issue
+can occur if many new servers are added to a cluster in
+quick succession, where the new servers are needed to form a majority of
+the cluster (see Figure~\ref{fig:membership:catchupmany}). In both
+cases, until the new servers' logs were caught up to the leader's, the
+clusters would be unavailable.
+
+In order to avoid availability gaps, Raft introduces an additional phase
+before the configuration change, in which a new server joins the cluster
+as a non-voting member. The leader replicates log entries to it, but it
+is not yet counted towards majorities for voting or commitment purposes.
+Once the new server has caught up with the rest of the cluster, the
+reconfiguration can proceed as described above. (The mechanism to
+support non-voting servers can also be useful in other contexts; for
+example, it can be used to replicate the state to a large number of
+servers, which can serve read-only requests with relaxed consistency.)
+
+The leader needs to determine when a new server is sufficiently caught
+up to continue with the configuration change. This requires some care to
+preserve availability: if the server is added too soon, the cluster's
+availability may be at risk, as described above. Our goal was to keep
+any temporary unavailability below an election timeout, since clients
+must already be able to tolerate occasional unavailability periods of
+that magnitude (in case of leader failures). Moreover, if possible, we
+wanted to minimize unavailability further by bringing the new server's
+log even closer to the leader's.
+
+The leader should also abort the change if the new server is unavailable
+or is so slow that it will never catch up. This check is important:
+Lamport's ancient Paxon government broke down because they did not
+include it. They accidentally changed the membership to consist of only
+drowned sailors and could make no more progress~\cite{Lamport:1998}.
+Attempting to add a server that is unavailable or slow is often a
+mistake. In fact, our very first configuration change request
+included a typo in a network port number; the system correctly aborted
+the change and returned an error.
+
+\begin{figure}
+\centering
+
+\begin{subfigure}{.43\textwidth}
+\centering
+\includegraphics[scale=0.50]{membership/catchupstart}
+\caption{
+Start of round 2.
+}
+\end{subfigure}
+~
+\begin{subfigure}{.48\textwidth}
+\centering
+\includegraphics[scale=0.50]{membership/catchupend}
+\caption{
+End of round 2.
+}
+\end{subfigure}
+
+\vcaption[rounds in server catchup algorithm]{
+To catch up a new server, the replication of entries to the new server
+is split into rounds. Each round completes once the new server has all
+of the entries that the leader had in its log at the start of the round.
+By then, however, the leader may have received new entries; these are
+replicated in the next round.
+}
+\label{fig:membership:catchup}
+\end{figure}
+
+We suggest the following algorithm to determine when a new server is
+sufficiently caught up to add to the cluster. The replication of entries
+to the new server is split into rounds, as shown in
+Figure~\ref{fig:membership:catchup}.
+Each round replicates all the log entries present in the leader's log at
+the start of the round to the new server's log. While it is replicating
+entries for its current round, new entries may arrive at the leader; it
+will replicate these during the next round. As progress is made, the
+round durations shrink in time. The algorithm waits a fixed number of
+rounds (such as 10). If the last round lasts less than an election
+timeout, then the leader adds the new server to the cluster, under the
+assumption that there are not enough unreplicated entries to create a
+significant availability gap. Otherwise, the leader aborts the
+configuration change with an error. The caller may always try again (it
+will be more likely to succeed the next time, since the new server's log
+will already be partially caught up).
+
+As the first step to catching up a new server, the leader must discover
+that the new server's log is empty. With a new server, the consistency
+check in AppendEntries will fail repeatedly until the leader's
+\emph{nextIndex} finally drops to one. This back-and-forth might be the
+dominant factor in the performance of adding a new server to the cluster
+(after this phase, log entries can be transmitted to the follower with
+fewer RPCs by using batching). Various approaches can make
+\emph{nextIndex} converge to its correct value more quickly, including
+those described in Chapter~\ref{basicraft}. The simplest approach to
+solving this particular problem of adding a new server, however, is to
+have followers return the length of their logs in the AppendEntries
+response; this allows the leader to cap the follower's \emph{nextIndex}
+accordingly.
+
+\subsection{Removing the current leader}
+\label{membership:availability:removing}
+
+
+If the existing leader is asked to remove itself from the cluster, it
+must step down at some point. One straightforward approach is to use
+the leadership transfer extension described in Chapter~\ref{basicraft}:
+a leader that is asked to remove itself would transfer its leadership to
+another server, which would then carry out the membership change normally.
+
+We initially developed a different approach for Raft, in which the
+existing leader carries out the membership change to remove itself, then
+it steps down. This puts Raft in a somewhat awkward mode of operation
+while the leader temporarily manages a configuration in which it is not
+a member. We initially needed this approach for arbitrary configuration
+changes (see Section~\ref{membership:arbitrary}), where the old
+configuration and the new configuration might not have any servers in
+common to which leadership could be transferred. The same approach is
+also viable for systems that do not implement leadership transfer.
+
+\begin{figure}
+\centering
+\includegraphics[scale=1]{membership/removedlog3}
+\vcaption[example of progress depending on removed server]{
+Until the \cnew{} entry has been committed, a removed server
+may need to lead the cluster to make progress.
+The figure shows the removal of S1 from a two-server cluster. S1
+is currently leader. S1 should not step down quite yet; it is
+still needed as leader. S2 cannot become leader until it receives the
+\cnew{} entry from S1 (since S2 still needs S1's vote to form a majority
+of \cold{}, and S1 won't grant its vote to S2 because S2's log is less
+up-to-date).
+}
+\label{fig:membership:removedlog3}
+\end{figure}
+
+In this approach, a leader that is removed from the configuration steps
+down once the \cnew{} entry is committed. If the leader stepped down
+before this point, it might still time out and become leader again,
+delaying progress. In an extreme case of removing the leader from a
+two-server cluster, the server might even have to become leader again
+for the cluster to make progress; see
+Figure~\ref{fig:membership:removedlog3}. Thus, the leader waits until
+\cnew{} is committed to step down. This is the first point when the new
+configuration can definitely operate without participation from the
+removed leader: it will always be possible for the members of \cnew{} to
+elect a new leader from among themselves.
+%
+After the removed leader steps down, a server in \cnew{} will time out
+and win an election. This small availability gap should be tolerable,
+since similar availability gaps arise when leaders fail.
+
+This approach leads to two implications about decision-making that are
+not particularly harmful but may be surprising.
+%
+%
+First, there will be a period of time (while it is committing
+\cnew{}) when a leader can manage a cluster that does not include
+itself; it replicates log entries but does not count itself in
+majorities.
+%
+Second,
+a server that is not part of its own latest configuration should
+still start new elections, as it might still be needed  until the
+\cnew{} entry is committed (as in
+Figure~\ref{fig:membership:removedlog3}). It does not count its own vote
+in elections unless it is part of its latest configuration.
+%
+
+\subsection{Disruptive servers}
+\label{membership:availability:disruptive}
+
+Without additional mechanism, servers not in \cnew{} can disrupt the
+cluster.
+Once the cluster leader has created the \cnew{} entry,
+a server that is not in \cnew{} will no longer receive heartbeats, so it
+will time out and start new elections.
+Furthermore, it will not receive the \cnew{} entry or learn of that
+entry's commitment,
+so it will not know that it has been removed from the cluster.
+The server will send RequestVote
+RPCs with new term numbers, and this will cause the current leader to
+revert to follower state. A new leader from \cnew{} will eventually be
+elected, but the disruptive server will time out again and the process
+will repeat, resulting in poor availability. If multiple servers have
+been removed from the cluster, the situation could degrade further.
+
+
+Our first idea for eliminating disruptions was that, if a server is
+going to start an election, it would first check that it wouldn't be
+wasting everyone's time---that it had a chance to win the election.
+This introduced a
+new phase to elections, called the Pre-Vote phase. A candidate would
+first ask other servers whether its log was up-to-date enough to get
+their vote. Only if the candidate believed it could get votes from a
+majority of the cluster would it increment its term and start a normal
+election.
+
+\begin{figure}
+\centering
+\includegraphics[scale=1]{membership/disruptive}
+\vcaption[example of disruptive server]{
+An example of how a server can be disruptive even before the \cnew{} log
+entry has been committed, and the Pre-Vote phase doesn't help.
+The figure shows the removal of S1 from a
+four-server cluster. S4 is leader of the new
+cluster and has created the \cnew{} entry in its log, but it hasn't yet
+replicated that entry. Servers in the old cluster no longer receive
+heartbeats from S4. Even before \cnew{} is committed, S1 can time out,
+increment its term, and send this larger term number to the new cluster,
+forcing S4 to step down. The Pre-Vote algorithm does not help, since
+S1's log is as up-to-date as a majority of either cluster.
+}
+\label{fig:membership:disruptive}
+\end{figure}
+
+Unfortunately, the Pre-Vote phase does not solve the problem of
+disruptive servers: there are situations where the disruptive server's
+log is sufficiently up-to-date, but starting an election would still be
+disruptive. Perhaps surprisingly, these can happen even before the
+configuration change completes. For example,
+Figure~\ref{fig:membership:disruptive} shows a server that is being
+removed from a cluster. Once the leader creates the \cnew{} log entry,
+the server being removed could be disruptive. The Pre-Vote check does
+not help in this case, since the server being removed has a log that is
+more up-to-date than a majority of either cluster. (Though the Pre-Vote
+phase does not solve the problem of disruptive servers, it does turn out
+to be a useful idea for improving the robustness of leader election in
+general; see Chapter~\ref{leaderelection}.)
+
+Because of this scenario, we now believe that no solution based on
+comparing logs alone (such as the Pre-Vote check)
+will be sufficient to tell if an election will be
+disruptive. We cannot require a server to check the logs of
+\emph{every} server in \cnew{} before starting an election,
+since Raft must always be able to tolerate
+faults. We also did not want to assume that a leader will reliably
+replicate entries fast enough to move past the scenario shown in
+Figure~\ref{fig:membership:disruptive} quickly; that might have worked
+in practice, but it depends on stronger assumptions that we prefer to
+avoid about the performance of finding where logs diverge and the
+performance of replicating log entries.
+
+Raft's solution uses heartbeats to determine when a valid leader exists.
+In Raft, a leader is considered
+active if it is able to maintain heartbeats to its followers (otherwise,
+another server will start an election). Thus, servers should not be able
+to disrupt a leader whose cluster is receiving heartbeats.
+We modify the RequestVote RPC to achieve this: if a server receives a
+RequestVote request within the minimum election timeout of hearing from a
+current leader, it does not update its term or grant its vote. It can
+either drop the request, reply with a vote denial, or delay the request;
+the result is essentially the same. This does not affect normal
+elections, where each server waits at least a minimum election timeout
+before starting an election. However, it helps avoid disruptions from
+servers not in \cnew{}: while a leader is able to get heartbeats to its
+cluster, it will not be deposed by larger term numbers.
+
+This change conflicts with the leadership transfer mechanism as
+described in Chapter~\ref{basicraft}, in which a server legitimately
+starts an election without waiting an election timeout.
+In that case, RequestVote messages
+should be processed by other servers even when they believe a current
+cluster leader exists. Those RequestVote requests can include a special
+flag to indicate this behavior (``I have permission to disrupt
+the leader---it told me to!'').
+
+
+\subsection{Availability argument}
+\label{membership:availability:argument}
+
+This section argues that the above solutions are sufficient to maintain
+availability during membership changes. Since Raft's membership changes
+are leader-based, we show that the algorithm will be able to maintain
+and replace leaders during membership changes and that the leader(s) will
+both service client requests and complete the configuration changes.
+We assume, among other things, that a majority of the old configuration
+is available (at least until \cnew{} is committed) and that a majority of
+the new configuration is available.
+
+\begin{enumerate}
+%
+\item A leader can be elected at all steps of the configuration change:
+%
+\begin{itemize}
+%
+\item If the available server with the most up-to-date log in the new
+cluster has the \cnew{} entry, it can collect votes from a majority of
+\cnew{} and become leader.
+%
+\item Otherwise, the \cnew{} entry must not yet be committed. The
+available server with the most up-to-date log among both the old and new
+clusters can collect votes from a majority of \cold{}
+and a majority of \cnew{},
+so no matter which configuration it uses, it can become leader.
+%
+\end{itemize}
+%
+\item A leader is maintained once elected, assuming its heartbeats get
+through to its configuration, unless it intentionally steps down because
+it is not in \cnew{} but has committed \cnew{}. 
+%
+\begin{itemize}
+%
+\item If a leader can reliably send heartbeats to its own configuration,
+then neither it nor its followers will adopt a higher term: they will not time
+out to start any new elections, and they will ignore any RequestVote
+messages with a higher term from other servers. Thus, the leader will
+not be forced to step down.
+%
+\item If a server that is not in \cnew{} commits the \cnew{} entry and
+steps down, Raft will then elect a new leader. It is likely that this
+new leader will be part of \cnew{}, allowing the configuration change to
+complete. However, there is some (small) risk that the server that
+stepped down might become leader again. If it was elected again, it
+would confirm the commitment of the \cnew{} entry and soon step down,
+and it is again likely that a server in \cnew{} would succeed the next
+time.
+%
+\end{itemize}
+%
+\item The leader(s) will service client requests throughout the
+configuration change.
+%
+\begin{itemize}
+%
+\item Leaders can continue to append client requests to their logs
+throughout the change.
+%
+\item Since new servers are caught up before being added to the cluster,
+a leader can advance its commit index and reply to
+clients in a timely manner.
+%
+\end{itemize}
+%
+\item The leader(s) will progress towards and complete the configuration
+change by committing \cnew{}, and, if necessary, stepping down to allow
+a server in \cnew{} to become leader.
+%
+\end{enumerate}
+
+\noindent
+Therefore, under the above assumptions, the mechanisms described in this
+section are sufficient to preserve availability during any membership
+change.
+

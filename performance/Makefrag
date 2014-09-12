@@ -1,0 +1,10 @@
+FIGGENPDF := $(FIGGENPDF) \
+  performance/optimizedpipeline.pdf \
+  performance/unoptimizedpipeline.pdf \
+  performance/throughput.pdf \
+  performance/latency.pdf
+
+performance/optimizedpipeline.pdf: performance/pipeline.svg
+	inkscape -T -z -i optimized -A $@ $<
+performance/unoptimizedpipeline.pdf: performance/pipeline.svg
+	inkscape -T -z -i unoptimized -A $@ $<

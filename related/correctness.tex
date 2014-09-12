@@ -1,0 +1,52 @@
+\section{Correctness}
+\label{related:correctness}
+
+The consensus community has primarily focused its correctness efforts on
+proofs of safety. Most of the widely accepted consensus algorithms have
+been proven safe in some form, including single-decree
+Paxos~\cite{Lamport:1998,Prisco:2000,Lamport:2013e},
+Multi-Paxos~\cite{Boichat:2003,Schiper:2014},
+EPaxos~\cite{Moraru:2013tr}, and
+Zab~\cite{Junqueira:2010}. We have only found informal sketches for
+Viewstamped Replication~\cite{Liskov:2012}.
+
+There are various approaches to proofs. On one axis, proofs range from
+less formal to more formal. Informal sketches are useful for building intuition
+but might overlook errors. 
+For Raft, we have developed a fairly detailed (semi-formal) proof and
+have also included informal sketches for intuition.
+The most formal proofs are machine-checked; they are so precise that a
+computer program can verify their correctness.
+These proofs are not always easy to understand, but they
+establish the truth of the statements proven with complete certainty.
+Machine-checked proofs are not yet standard in distributed systems (they
+are more popular in, for example, the programming languages community),
+and we struggled to create one ourselves.
+However, recent work argues for this
+approach~\cite{Lamport:2011,Schiper:2014}, and the
+EventML~\cite{Schiper:2014} authors have shown their approach can be
+feasible for consensus by proving Multi-Paxos correct. Pairing
+machine-checked proofs with informal sketches can get the best of both
+worlds, and we hope to see the distributed systems community move in
+that direction.
+
+Proofs also range in how directly they apply to real-world systems. Some
+prove properties on very simplified models; these can aid understanding
+but have limited direct value for the correctness of complete systems.
+For example, real systems vary so much from single-decree Paxos that
+they may not benefit much from its proofs. Other proofs operate on more
+complete specifications (e.g., the Raft proof presented in
+Appendix~\ref{appendix:correctness} and the proof for
+EPaxos~\cite{Moraru:2013tr}); real-world implementations are
+closer to these specifications, so these proofs are closer to proving
+properties on real-world code. Some proof systems can even generate
+working implementations, which eliminates the possibility of errors in
+translation from the specification to the implementation (e.g.,
+EventML~\cite{Schiper:2014}). However, this approach has not been very
+popular in practice so far, perhaps because real-world systems have
+additional needs, such as performance, that are harder to accommodate in
+the generated code.
+
+We have not found many proofs of liveness or availability (nor have we
+contributed any for Raft). These properties may be harder to formalize,
+but we hope to see a greater emphasis on this in the future.

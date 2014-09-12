@@ -1,0 +1,259 @@
+\section{Cluster membership changes}
+\label{related:membership}
+
+Several different approaches for cluster membership changes have been
+proposed or implemented in other work. Most of these implement arbitrary
+cluster membership changes, while Raft restricts changes to
+single-server additions and removals.
+We do not know of prior work that discusses
+restricting changes to single-server additions and removals for
+simplicity, though we think it is likely that prior systems have
+implemented this. The remainder of this section compares related work to Raft's
+joint consensus approach to arbitrary cluster membership changes, as
+presented in Section~\ref{membership:arbitrary}.
+
+In order to ensure safety across arbitrary configuration changes, the
+changes must use a two-phase approach. There are a variety of ways to
+implement the two phases. For example, some systems
+(e.g.,~\cite{Liskov:2012}) use the first phase to disable the old
+configuration so it cannot process client requests; then the second
+phase enables the new configuration. In the approach to arbitrary
+configuration changes in Raft, the cluster first switches to a
+transitional configuration called \emph{joint consensus}; once the
+joint consensus has been committed, the system then transitions to the
+new configuration.
+
+\subsection{$\alpha$-based approaches}
+
+Lamport~\cite{Lamport:1998,Lamport:2001} proposed for Paxos that the
+$i^\textrm{th}$ log entry would determine the cluster membership for the
+$i+\alpha^\textrm{th}$ log entry. The two phases in this approach are:
+%
+\begin{enumerate}
+%
+\item The new configuration is agreed upon at log entry $i$; then
+%
+\item The new configuration takes effect at log entry $i+\alpha$.
+%
+\end{enumerate}
+A cluster is able to process requests during configuration changes, up
+to the $\alpha$ limit.
+
+Unfortunately, $\alpha$ also limits the degree of concurrency of a Paxos
+cluster during normal operations. If entry $i$ is the first entry not
+yet known to be committed, it is possible that $i$ could eventually end
+up changing the configuration; thus, servers cannot send proposals for
+entry $i+\alpha$ or beyond until they learn of $i$'s commitment.
+$\alpha$ can be configured to be large to allow for sufficient
+pipelining/batching of entries during normal operation, but then configuration
+changes take longer to take effect. To mitigate this, a server can
+propose \emph{no-op} entries in the intervening $\alpha - 1$ log
+entries.
+
+While Lamport's proposal handles safety concerns quite simply, it leaves
+many liveness and availability questions unanswered. For example, the
+new servers need to learn all the decisions from the old cluster so
+their state machines can advance. How do the new servers get these
+entries, and how do the old servers know when they can shut down? How do
+the new servers even know what the old or new configurations are?
+
+
+SMART~\cite{Lorch:2006} is an attempt to address these questions. In
+SMART, each physical server hosts one or more virtual servers, and each
+virtual server participates in a single cluster with a static
+configuration. SMART uses an $\alpha$-like approach for determining when
+one configuration should finish accepting client requests and terminate.
+When the old configuration receives a membership change request, it
+informs the new configuration to begin at a particular log index
+($\alpha$ entries later). Once the final log from the old configuration
+has been transmitted to a majority of the servers in the new
+configuration, the new configuration may start servicing client
+requests, and the virtual servers in the old configuration may shut
+down.
+
+
+SMART's model for membership changes may be challenging to implement
+efficiently. During the change, if one physical server is part of both
+the old and the new cluster, it must simultaneously run two virtual
+servers, one for each configuration. To make this space-efficient, some
+of the server's state is moved to a separate \emph{execution model}
+which is shared by all virtual servers on a single physical server.
+Unfortunately, this
+adds significant mechanism and complexity for implementations. In
+contrast, in Raft, each server participates in only one configuration at
+a time; it always uses the latest configuration in its log.
+
+The $\alpha$ and SMART approaches are incompatible with Raft's
+commitment rule. In Raft, if a leader cannot append to its log, it may
+not be able to mark existing entries as committed. For example, suppose
+a leader reached its limit of $\alpha$ uncommitted entries, then
+restarted and became leader again. Due to the $\alpha$ limitation, the
+leader could not create any new entries in its current term, so it
+wouldn't be able to mark any existing entries committed. In this case,
+$\alpha$ and Raft are in conflict: $\alpha$ requires commitment to
+append new entries, but Raft requires appending new entries for
+commitment.
+
+If Raft's commitment rule were not an issue (e.g., if Viewstamped
+Replication's commitment rule were used instead), the $\alpha$ or SMART
+approaches to membership changes could work, but Raft's leader-based
+approach poses additional challenges. Log entries in Raft are only sent
+from the leader to other servers, so the old cluster's leader needs to
+replicate all of its entries to the new cluster (as well as committing
+them to the old cluster). Thus, the old cluster leader would need to add
+the new cluster servers as non-voting members of its configuration.
+With the $\alpha$ approach (but not with SMART), the need to maintain a
+leader in the old cluster results in scenarios where there are two
+leaders in a single Raft cluster: the leader of the old cluster
+replicates the log up to $i + \alpha$ and cannot write beyond that, and
+the leader of the new cluster knows the entries up to $i + \alpha$ are
+committed and replicates new log entries past $i + \alpha$. Even if the
+two leaders don't conflict over log entries, they are likely to
+introduce availability issues without additional mechanisms. The SMART
+approach is conceptually simpler for allowing multiple concurrent
+leaders, since the leaders are members of distinct clusters.
+
+
+\subsection{Changing membership during leader election}
+
+The original Viewstamped Replication algorithm did not include
+membership changes, but Viewstamped Replication Revisited and a paper by
+\mazieres{}~\cite{Mazieres:2007} each extends the original algorithm to
+support membership changes. Both approaches change the membership
+between views while the
+cluster has no leader. Thus, neither can process client requests during
+membership changes, and neither approach is compatible with Raft, which
+requires a leader to transfer entries to the new servers.
+
+In Viewstamped Replication Revisited, the new configuration is committed
+as a special
+log entry under the old configuration, then a view change (leader
+election) is initiated. The servers in the new configuration must update
+themselves from the old cluster before they can begin participating in
+the new view (term). Meanwhile, they cannot process client requests.
+When the leader and enough other servers have updated themselves, the
+cluster resumes processing client requests. The two phases in this
+approach are:
+%
+\begin{enumerate}
+%
+\item The old servers move to a new view, thereby stopping client
+requests; and
+%
+\item Once the new servers have gotten the necessary log entries, they
+resume processing client requests.
+%
+\end{enumerate}
+
+\mazieres{} presents another approach in which the cluster membership is
+decided as part of view changes~\cite{Mazieres:2007}.
+To form a new view, the cluster reaches agreement both on who the leader
+will be and on who the cluster members will be. The two phases in this
+approach are:
+%
+\begin{enumerate}
+%
+\item When a server accepts an invitation for a new view, it stops
+accepting requests from the leader of the old view; and
+%
+\item Once the server learns the view change has been agreed upon, it
+begins accepting requests from the leader of the new view.
+%
+\end{enumerate}
+%
+In some cases when intervening view changes have failed, the servers
+must sometimes require a majority of the old cluster and a majority of
+the new cluster for agreement to begin operating in the new view; this
+is similar to joint consensus but is only used in special cases.
+
+\mazieres{}'s approach operates using additional messages rather than
+log entries, since there is no leader during the view change to commit
+log entries. This requires additional mechanism to agree upon and
+transmit configurations, which Raft avoids. Raft's algorithm also has
+the advantage that normal requests can proceed during membership
+changes; in contrast, both Viewstamped Replication Revisited and
+\mazieres{}'s approaches must temporarily stop all normal processing
+during membership changes.
+
+Neither Viewstamped Replication
+Revisited nor \mazieres{}'s approach works for Raft because Raft has no
+separate mechanism for ``state transfer''. In Raft, the old servers must
+maintain a leader long enough to replicate and commit log entries to the
+new servers, but the Viewstamped Replication Revisited and \mazieres{}
+approaches require the cluster to be able to
+replicate log entries without a leader.
+
+\subsection{Zab}
+
+Zab's approach to membership changes is the closest to Raft's joint
+consensus approach, and the basic idea would also work for Raft.
+The two phases in Zab's approach are:
+%
+\begin{enumerate}
+%
+\item A log entry containing the new configuration is committed to both
+a majority of the old cluster and a majority of the new
+cluster. The old
+leader may continue to replicate entries past the new configuration
+entry, but it may not mark any further entries committed (unless it is
+also part of the new cluster).
+%
+\item Then,
+the leader of the old cluster sends \emph{Activate}
+messages to the new cluster, informing the new cluster of the
+configuration entry's
+commitment. This enables the new cluster to elect a
+leader and continue operations. If the old leader is also part of the
+new cluster, it can continue as leader.
+%
+\end{enumerate}
+
+Raft's joint consensus approach records state during membership changes
+more explicitly in the log:
+it uses a second log entry to activate the new configuration, whereas
+Zab uses Activate messages that are not logged. This makes Zab's
+transitions and failure recovery more complex, as a server's current
+configuration depends on both its log and 
+its latest committed configuration.
+In Raft, on the other hand, a server always uses the latest
+configuration in its log, and failures are handled with no additional
+mechanism.
+
+Neither algorithm stalls client operations when the old leader is also
+part of the new cluster, as this server continues as leader throughout
+and beyond the membership change. However, Zab's treatment of leaders
+that are being removed from the cluster differs from Raft's in two ways:
+%
+\begin{enumerate}
+%
+\item In Raft a leader that is being removed continues to commit log
+entries until it steps down. In Zab, however, a leader that is being
+removed may not commit any log entries that come after the configuration
+change entry in its log. It may still replicate those entries, though,
+and the effect of this restriction is probably small.
+%
+\item In Zab if the leader removes itself from the cluster, the new
+servers will begin leader election right away, and the old leader
+can designate a new server to become leader immediately.
+In Raft the new servers wait
+for an election timeout, but using Raft's
+leadership transfer extension (Chapter~\ref{basicraft}) can
+similarly avoid this delay.
+%
+\end{enumerate}
+
+
+%
+%
+%
+%
+%
+
+ZooKeeper allows reads to be served by any server, and, without
+additional mechanism, clients may end up imbalanced across servers after
+membership changes. For example, servers that have recently been added
+to a cluster will have a disproportionately low number of clients
+connected to them. The paper describes a probabilistic algorithm to
+rebalance client load to the new servers after a membership change,
+which would also be useful for Raft implementations that allow reads
+from any server.

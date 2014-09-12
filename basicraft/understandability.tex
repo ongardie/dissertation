@@ -1,0 +1,41 @@
+\section{Designing for understandability}
+\label{basicraft:understandability}
+
+We had several goals in designing \name{}: it must provide a complete
+and practical foundation for system building, so that it
+significantly reduces the amount of design work required of developers;
+it must be safe under all conditions and available under
+typical operating conditions; and it must be efficient for
+common operations. But our most important goal---and most difficult
+challenge---was \emph{understandability}. It must be possible
+for a large audience to understand the algorithm comfortably.
+In addition, it must be possible to develop intuitions
+about the algorithm, so that system builders can make the
+extensions that are inevitable in real-world implementations.
+
+There were numerous points in the design of \name{} where we had to
+choose among alternative approaches. In these situations we evaluated
+the alternatives based on understandability: how hard is it to explain
+each alternative (for example, how complex is its state space, and
+does it have subtle implications?), and how easy will it be for a reader
+to completely understand the approach and its implications?
+
+We recognize that there is a high degree of subjectivity in such
+analysis; nonetheless, we used two techniques that
+are generally applicable. The first technique is the well-known approach
+of problem decomposition: wherever possible, we divided problems
+into separate pieces that could be solved, explained, and understood
+relatively independently. For example, in \name{} we separated
+leader election, log replication, and safety.
+
+Our second approach was to simplify the state space by reducing the
+number of states to consider, making the system
+more coherent and eliminating nondeterminism where possible.
+Specifically, logs are not allowed to have holes, and Raft limits the
+ways in which logs can become inconsistent with each other.
+Although in most cases we tried to eliminate nondeterminism, there are
+some situations where nondeterminism actually improves understandability.
+In particular, randomized approaches introduce nondeterminism, but
+they tend to reduce the state space by handling all possible choices
+in a similar fashion (``choose any; it doesn't matter''). We used
+randomization to simplify the Raft leader election algorithm.

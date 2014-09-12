@@ -1,0 +1,91 @@
+\section{Replicated state machines vs.\ primary copy approach}
+\label{related:rsm}
+
+\begin{figure}
+\centering
+
+\begin{subfigure}{\textwidth}
+\centering
+\includegraphics[scale=0.50]{related/rsm}
+\caption{
+Traditional replicated state machine approach.
+}
+\end{subfigure}
+
+\vspace{4ex}
+
+\begin{subfigure}{\textwidth}
+\centering
+\includegraphics[scale=0.50]{related/primarybackup}
+\caption{
+Primary copy approach.
+}
+\end{subfigure}
+
+\vcaption[primary copy architecture]{
+In the primary copy architecture, the primary's state machine
+processes requests from clients and calculates resulting states, which
+its consensus module replicates into the servers' logs. The figure shows
+a client submitting a request to increment a variable $y$, which the
+primary translates into an operation to set $y$ to $2$.
+}
+\label{fig:related:primarybackup}
+\end{figure}
+
+The original Viewstamped Replication paper and ZooKeeper operate
+slightly differently from traditional replicated
+state machines, using a \emph{primary copy} architecture instead.
+The primary copy architecture is
+illustrated in Figure~\ref{fig:related:primarybackup}. It is similar to
+replicated state machines in that each server still has a consensus
+module, a state machine, and a log. However, the primary's (leader's) state machine
+processes requests as soon as they arrive from clients,
+instead of waiting for them to be committed. It then computes
+the state resulting from each request, and the final state, rather than
+the original requests, is replicated in the log using consensus.
+Once the log entries are committed, the effects of the client requests
+are externalized to clients.
+(For linearizability, the primary should also include client responses in
+the log entries, allowing backups servers to return the same response in
+case clients retry; see Chapter~\ref{clients}.)
+
+From the point of view of the consensus algorithm, the primary copy
+approach is very similar to replicated state machines. Thus, nearly all
+of the Raft algorithm applies equally well to the primary copy approach.
+However, the state machine and overall system are somewhat more complex
+in the primary copy approach. They differ in three ways.
+
+First, the primary's state machine in primary copy systems reflects
+uncommitted entries in the log, whereas in replicated state machines,
+the state machines only reflect committed entries. This distinction is
+necessary for primaries to produce the resulting states when they
+receive client requests, but it introduces two complications: the state
+machine must take caution not to externalize any uncommitted state, and
+if another server becomes the primary, the old primary's state machine
+needs to roll back its recent uncommitted changes.
+
+Second, the log in the replicated state machine approach includes all
+client requests, even those that ended up having no effect. For example,
+a conditional write operation whose condition was not met would still
+occupy space in the log. In the primary copy approach, the primary would
+not need to append anything new to its log for such failed operations
+(it would only need to wait until it was safe to externalize the
+response). On the other hand, this is unlikely to have a significant
+effect on the system's capacity, as logs must eventually be compacted in
+either approach.
+
+Third, the state machines in the replicated state machine approach must
+be deterministic, since every server must arrive at the same result
+after applying the same series of client requests. For example, the
+effects of client requests must not depend on each server's current
+time. In the primary copy approach, however, the primary's state machine
+need not be deterministic; it may do anything it likes with the request,
+as long as the state change it produces is deterministic. Fortunately, a
+hybrid approach allows replicated state machines to overcome this
+limitation in most cases: the server receiving a client request can
+augment that request with additional nondeterministic inputs, such as
+its current time and a random number, before appending the request into
+the replicated logs. All of the servers' state machines can then process
+the augmented request deterministically.
+
+

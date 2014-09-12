@@ -1,0 +1,42 @@
+\begin{figure}
+\centering
+\fbox {
+  \parbox{5.1in}{
+    \small
+    \begin{description}
+    \itemsep 0em
+    \item[\textbf{Election Safety}] \hfill \\
+    At most one leader can be elected in
+    a given term.
+    \S\ref{basicraft:leaderelection}
+
+    \item[\textbf{Leader Append-Only}] \hfill \\
+    A leader never overwrites or deletes
+    entries in its log; it only appends new entries. \S\ref{basicraft:logreplication}
+
+    \item[\textbf{Log Matching}] \hfill \\
+    If two logs contain an entry with
+    the same index and term, then the logs are identical in all entries
+    up through the given index. \S\ref{basicraft:logreplication}
+
+    \item[\textbf{Leader Completeness}] \hfill \\
+    If a log entry is committed
+    in a given term, then that entry will be present in the logs of
+    the leaders for all higher-numbered terms.
+    \S\ref{basicraft:safety}
+
+    \item[\textbf{State Machine Safety}] \hfill \\
+    If a server has applied a
+    log entry at a given index to its state machine, no other server
+    will ever apply a different log entry for the same index.
+    \S\ref{basicraft:safety:argument}
+    \vspace{-0.5ex}
+    \end{description}
+  }
+}
+\vcaption[key properties]{
+\name{} guarantees that each of these properties is true at all times. The
+section numbers indicate where each property is discussed.
+}
+\label{fig:basicraft:properties}
+\end{figure}

@@ -1,0 +1,42 @@
+\section{Preventing disruptions when a server rejoins the cluster}
+\label{leaderelection:prevote}
+
+One downside of Raft's leader election algorithm is that a server that
+has been partitioned from the cluster is likely to cause a disruption
+when it regains connectivity. When a server is partitioned, it will not
+receive heartbeats. It will soon increment its term to start an
+election, although it won't be able to collect enough votes to become
+leader. When the server regains connectivity sometime later, its larger
+term number will propagate to the rest of the cluster (either through
+the server's RequestVote requests or through its AppendEntries
+response). This will force the cluster leader to step down, and a new
+election will have to take place to select a new leader. Fortunately,
+such events are likely to be rare, and each will only cause one leader to
+step down.
+
+If desired, Raft's basic leader election algorithm can be extended with
+an additional phase to prevent such disruptions, forming the Pre-Vote
+algorithm. In the Pre-Vote algorithm, a candidate only increments its
+term if it first learns from a majority of the cluster that they would
+be willing to grant the candidate their votes (if the candidate's log is
+sufficiently up-to-date, and the voters have not received heartbeats from
+a valid leader for at least a baseline election timeout). This was
+inspired by ZooKeeper's algorithm~\cite{Junqueira:2011}, in which a
+server must receive a majority of votes before it calculates a new epoch
+and sends NewEpoch messages (however, in ZooKeeper servers do not
+solicit votes, other servers offer them).
+
+The Pre-Vote algorithm solves the issue of a partitioned server
+disrupting the cluster when it rejoins. While a server is partitioned,
+it won't be able to increment its term, since it can't receive
+permission from a majority of the cluster. Then, when it rejoins the
+cluster, it still won't be able to increment its term, since the other
+servers will have been receiving regular heartbeats from the leader.
+Once the server receives a heartbeat from the leader itself, it will
+return to the follower state (in the same term).
+
+We recommend the Pre-Vote extension in deployments that would benefit
+from additional robustness. We also tested it in various leader
+election scenarios in AvailSim, and it does not appear to significantly
+harm election performance.
+

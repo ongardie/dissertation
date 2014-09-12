@@ -1,0 +1,86 @@
+\chapter{Leader election evaluation}
+\label{leaderelection}
+
+\newcommand\algo[1]{\emph{#1} algorithm}
+\newcommand\algocap[1]{\emph{#1} algorithm}
+\newcommand\algoabbrv[1]{\emph{#1} algo.}
+
+This chapter analyzes the performance of leader election in Raft, which
+occurs when a leader fails and needs to be
+replaced. Although we expect leader failures to be a rare event, they
+should be handled in a timely manner. We would like Raft to reliably
+elect a new leader in a fraction of a second in a typical deployment.
+
+Unfortunately, it is difficult to put a bound on the time or number of
+messages leader election will take. According to the FLP impossibility
+result~\cite{Fischer:1985}, no
+fault-tolerant consensus protocol can deterministically terminate in a
+purely asynchronous model. This manifests itself in split votes in Raft,
+which can potentially impede progress repeatedly during leader election.
+Raft also makes use of
+randomized timeouts during leader election, which makes its analysis
+probabilistic. Thus, we can only say that leader election
+performs well with high likelihood, and even then only under various
+assumptions. For example, servers must choose timeouts from a random
+distribution (they are not somehow synchronized), clocks must proceed at
+about the same rates, and servers and networks must be timely (or
+stopped). If these assumptions are not met for some period of time, the
+cluster might not be able to elect a leader during that period
+(though safety will always be maintained).
+
+This chapter draws the following conclusions about the performance of
+Raft's leader election algorithm:
+%
+\begin{itemize}
+%
+\item When no split vote occurs, elections complete about one third of
+the way into the election timeout range, on average. They complete
+slightly faster in clusters with more available servers, since the first
+server is expected to time out sooner.
+(Section~\ref{leaderelection:nosplit})
+%
+\item Split vote rates are low when the election timeout range is
+sufficiently broad. We recommend a range that is
+10--20 times the one-way
+network latency, which keeps split votes rates under 40\% in all cases
+for reasonably sized clusters, and typically results in much lower rates.
+Clusters will experience more split votes as more servers fail, since
+fewer votes are available. (Section~\ref{leaderelection:split:rate})
+%
+\item The number of election terms required to elect a leader follows a
+geometric distribution,
+where the expected number is $\dfrac{1}{1-\text{split vote rate}}$.
+Thus, even a high split vote rate of 50\% will only need two election
+terms on average to elect a leader.
+A cluster configured with an election timeout that is 10--20 times its
+one-way network latency will be able to elect a leader in less than 20
+times its one-way network latency on average.
+(Section~\ref{leaderelection:split:total})
+%
+\item Leader election performs well in practice in both local and wide
+area networks. In a real-world LAN, our system was able to elect a
+leader in an average of \SI{35}{\milli\second} when configured with aggressive
+timeouts, though we suggest using a more conservative timeout range in
+practice. On a simulated WAN spanning the US, elections typically
+complete in half a second, and 99.9\% of elections complete in
+\SI{3}{seconds}, even when two of five servers have failed.
+(Section~\ref{leaderelection:lan})
+%
+\item The performance of leader election is not substantially affected
+by the log comparison in RequestVote RPCs, when some servers will not
+grant their votes to others. (Section~\ref{leaderelection:logsdiff})
+%
+\item The basic leader election algorithm can cause disruptions if
+followers lose connectivity, increment their terms, and then regain
+connectivity. Section~\ref{leaderelection:prevote} extends the basic
+algorithm with an additional phase to avoid such disruptions.
+%
+\end{itemize}
+
+\input{leaderelection/nosplit}
+\input{leaderelection/splitrate}
+\input{leaderelection/splittotal}
+\input{leaderelection/real}
+\input{leaderelection/logsdiff}
+\input{leaderelection/prevote}
+\input{leaderelection/conclusion}

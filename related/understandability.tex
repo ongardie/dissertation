@@ -1,0 +1,36 @@
+\section{Understandability}
+\label{related:understandability}
+
+Studies involving human factors are common in other areas of computer
+science, namely Human-Computer Interaction (HCI). HCI researchers
+typically iterate on designs using empirical measurements, using
+incremental results from the study to guide improvements to their
+designs. To make this possible, the study must be relatively easy to
+repeat and relatively low in cost. A typical HCI study asks participants
+to learn and perform a task using a user interface, which takes little
+preparation and may only require a few minutes per participant. In
+contrast, our primary goal was to compare Raft and Paxos, not to iterate
+on Raft, and the cost of the Raft study made it difficult to apply an
+iterative approach (we needed to prepare teaching materials and quizzes,
+and each participant needed to invest several hours in the study). Now
+that we have shown that Raft is easier to understand than Paxos, it may
+be feasible to do further iterative studies (A/B testing) to find better
+variations of Raft or better variations of its explanation.
+
+Side-stepping human factors altogether,
+NetComplex~\cite{Chun:2008} proposed a ``metric to quantify the notion
+of algorithmic complexity in network system design''. The metric
+calculates the distributed dependencies of state, where the complexity
+of each state variable is the sum of the complexity of its dependencies.
+The paper also compares the complexity of two-phase commit and
+single-decree Paxos according to this metric; as expected, it finds
+Paxos to be more complex.
+
+Clearly a formula for quantifying the complexity or understandability of
+an algorithm would be very useful. However, we do not know whether the
+formula proposed in the NetComplex paper is the right one. Many factors
+contribute to complexity, and their relative importance and the
+interactions between them are not well understood. It is also not
+obvious how to apply the proposed formula to the complete Raft
+algorithm, which is much larger than the examples given in the paper
+(but we would be very interested in seeing the result).

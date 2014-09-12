@@ -1,0 +1,1291 @@
+\tlatex
+\setboolean{shading}{true}
+ \@x{\makebox[0pt][r]{\scriptsize 1\hspace{1em}}}\moduleLeftDash\@xx{
+ {\MODULE} raft}\moduleRightDash\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 2\hspace{1em}}}%
+\@y{\@s{0}%
+ This is the formal specification for the Raft consensus algorithm.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 3\hspace{1em}}}%
+\@y{\@s{0}%
+ It was last modified on \ensuremath{July} 6, 2014.
+}%
+\@xx{}%
+\@pvspace{8.0pt}%
+ \@x{\makebox[0pt][r]{\scriptsize 5\hspace{1em}} {\EXTENDS} Naturals ,\,
+ FiniteSets ,\, Sequences ,\, TLC}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 7\hspace{1em}}}%
+\@y{\@s{0}%
+ The set of server \ensuremath{IDs
+}}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 8\hspace{1em}} {\CONSTANTS} Server}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 10\hspace{1em}}}%
+\@y{\@s{0}%
+ The set of requests that can go into the \ensuremath{log
+}}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 11\hspace{1em}} {\CONSTANTS} Value}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 13\hspace{1em}}}%
+\@y{\@s{0}%
+ Server states.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 14\hspace{1em}} {\CONSTANTS} Follower ,\,
+ Candidate ,\, Leader}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 16\hspace{1em}}}%
+\@y{\@s{0}%
+ A reserved value.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 17\hspace{1em}} {\CONSTANTS} Nil}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 19\hspace{1em}}}%
+\@y{\@s{0}%
+ Message types:
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 20\hspace{1em}} {\CONSTANTS}
+ RequestVoteRequest ,\, RequestVoteResponse ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 21\hspace{1em}}\@s{59.95}
+ AppendEntriesRequest ,\, AppendEntriesResponse}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 23\hspace{1em}}}\midbar\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 24\hspace{1em}}}%
+\@y{\@s{0}%
+ Global variables
+}%
+\@xx{}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 26\hspace{1em}}}%
+\@y{\@s{0}%
+ A bag of records representing requests and responses sent from one server
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 27\hspace{1em}}}%
+\@y{\@s{0}%
+ to another. \ensuremath{TLAPS} doesn\mbox{'}t support the Bags module, so
+ this is a function
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 28\hspace{1em}}}%
+\@y{\@s{0}%
+ mapping Message to \ensuremath{Nat}.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 29\hspace{1em}} {\VARIABLE} messages}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 31\hspace{1em}}}%
+\@y{\@s{0}%
+ A history variable used in the proof. This would not be present in an
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 32\hspace{1em}}}%
+\@y{\@s{0}%
+ implementation.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 33\hspace{1em}}}%
+\@y{\@s{0}%
+ Keeps track of successful elections, including the initial logs of the
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 34\hspace{1em}}}%
+\@y{\@s{0}%
+ leader and voters\mbox{'} logs. Set of functions containing various things
+ about
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 35\hspace{1em}}}%
+\@y{\@s{0}%
+ successful elections (see \ensuremath{BecomeLeader}).
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 36\hspace{1em}} {\VARIABLE} elections}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 38\hspace{1em}}}%
+\@y{\@s{0}%
+ A history variable used in the proof. This would not be present in an
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 39\hspace{1em}}}%
+\@y{\@s{0}%
+ implementation.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 40\hspace{1em}}}%
+\@y{\@s{0}%
+ Keeps track of every \ensuremath{log} ever in the system (set of logs).
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 41\hspace{1em}} {\VARIABLE} allLogs}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 43\hspace{1em}}}\midbar\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 44\hspace{1em}}}%
+\@y{\@s{0}%
+ The following variables are all per server (functions with domain
+ \ensuremath{Server}).
+}%
+\@xx{}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 46\hspace{1em}}}%
+\@y{\@s{0}%
+ The server\mbox{'}s term number.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 47\hspace{1em}} {\VARIABLE} currentTerm}%
+\@x{\makebox[0pt][r]{\scriptsize 48\hspace{1em}}}%
+\@y{\@s{0}%
+ The server\mbox{'}s state (Follower, \ensuremath{Candidate}, or
+ \ensuremath{Leader}).
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 49\hspace{1em}} {\VARIABLE} state}%
+\@x{\makebox[0pt][r]{\scriptsize 50\hspace{1em}}}%
+\@y{\@s{0}%
+ The candidate the server voted for in its current term, or
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 51\hspace{1em}}}%
+\@y{\@s{0}%
+ Nil if it hasn\mbox{'}t voted for any.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 52\hspace{1em}} {\VARIABLE} votedFor}%
+ \@x{\makebox[0pt][r]{\scriptsize 53\hspace{1em}} serverVars \.{\defeq}
+ {\langle} currentTerm ,\, state ,\, votedFor {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 55\hspace{1em}}}%
+\@y{\@s{0}%
+ A Sequence of \ensuremath{log} entries. The index into this sequence is the
+ index of the
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 56\hspace{1em}}}%
+\@y{\@s{0}%
+ \ensuremath{log} entry. Unfortunately, the Sequence module defines
+ \ensuremath{Head(s)} as the entry
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 57\hspace{1em}}}%
+\@y{\@s{0}%
+ with index 1, so be careful not to use that!
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 58\hspace{1em}} {\VARIABLE} log}%
+\@x{\makebox[0pt][r]{\scriptsize 59\hspace{1em}}}%
+\@y{\@s{0}%
+ The index of the latest entry in the \ensuremath{log} the state machine may
+ apply.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 60\hspace{1em}} {\VARIABLE} commitIndex}%
+ \@x{\makebox[0pt][r]{\scriptsize 61\hspace{1em}} logVars \.{\defeq} {\langle}
+ log ,\, commitIndex {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 63\hspace{1em}}}%
+\@y{\@s{0}%
+ The following variables are used only on candidates:
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 64\hspace{1em}}}%
+\@y{\@s{0}%
+ The set of servers from which the candidate has received a
+ \ensuremath{RequestVote
+}}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 65\hspace{1em}}}%
+\@y{\@s{0}%
+ response in its \ensuremath{currentTerm}.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 66\hspace{1em}} {\VARIABLE} votesResponded}%
+\@x{\makebox[0pt][r]{\scriptsize 67\hspace{1em}}}%
+\@y{\@s{0}%
+ The set of servers from which the candidate has received a vote in its
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 68\hspace{1em}}}%
+\@y{\@s{0}%
+ \ensuremath{currentTerm}.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 69\hspace{1em}} {\VARIABLE} votesGranted}%
+\@x{\makebox[0pt][r]{\scriptsize 70\hspace{1em}}}%
+\@y{\@s{0}%
+ A history variable used in the proof. This would not be present in an
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 71\hspace{1em}}}%
+\@y{\@s{0}%
+ implementation.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 72\hspace{1em}}}%
+\@y{\@s{0}%
+ Function from each server that voted for this candidate in its
+ \ensuremath{currentTerm
+}}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 73\hspace{1em}}}%
+\@y{\@s{0}%
+ to that voter\mbox{'}s \ensuremath{log}.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 74\hspace{1em}} {\VARIABLE} voterLog}%
+ \@x{\makebox[0pt][r]{\scriptsize 75\hspace{1em}} candidateVars \.{\defeq}
+ {\langle} votesResponded ,\, votesGranted ,\, voterLog {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 77\hspace{1em}}}%
+\@y{\@s{0}%
+ The following variables are used only on leaders:
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 78\hspace{1em}}}%
+\@y{\@s{0}%
+ The next entry to send to each follower.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 79\hspace{1em}} {\VARIABLE} nextIndex}%
+\@x{\makebox[0pt][r]{\scriptsize 80\hspace{1em}}}%
+\@y{\@s{0}%
+ The latest entry that each follower has acknowledged is the same as the
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 81\hspace{1em}}}%
+\@y{\@s{0}%
+ leader\mbox{'}s. This is used to calculate \ensuremath{commitIndex} on the
+ leader.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 82\hspace{1em}} {\VARIABLE} matchIndex}%
+ \@x{\makebox[0pt][r]{\scriptsize 83\hspace{1em}} leaderVars \.{\defeq}
+ {\langle} nextIndex ,\, matchIndex ,\, elections {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 85\hspace{1em}}}%
+\@y{\@s{0}%
+ End of per server variables.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 86\hspace{1em}}}\midbar\@xx{}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 88\hspace{1em}}}%
+\@y{\@s{0}%
+ All variables; used for stuttering (asserting state hasn\mbox{'}t changed).
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 89\hspace{1em}} vars \.{\defeq} {\langle}
+ messages ,\, allLogs ,\, serverVars ,\, candidateVars ,\, leaderVars ,\,
+ logVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 91\hspace{1em}}}\midbar\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 92\hspace{1em}}}%
+\@y{\@s{0}%
+ Helpers
+}%
+\@xx{}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 94\hspace{1em}}}%
+\@y{\@s{0}%
+ The set of all quorums. This just calculates simple majorities, but the only
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 95\hspace{1em}}}%
+\@y{\@s{0}%
+ important property is that every quorum overlaps with every other.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 96\hspace{1em}} Quorum \.{\defeq} \{ i
+ \.{\in} {\SUBSET} ( Server ) \.{:} Cardinality ( i ) \.{*} 2 \.{>}
+ Cardinality ( Server ) \}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 98\hspace{1em}}}%
+\@y{\@s{0}%
+ The term of the last entry in a \ensuremath{log}, or 0 if the
+ \ensuremath{log} is empty.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 99\hspace{1em}} LastTerm ( xlog ) \.{\defeq}
+ {\IF} Len ( xlog ) \.{=} 0 \.{\THEN} 0 \.{\ELSE} xlog [ Len ( xlog ) ] .
+ term}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 101\hspace{1em}}}%
+\@y{\@s{0}%
+ Helper for \ensuremath{Send} and \ensuremath{Reply}. Given a message
+ \ensuremath{m} and bag of messages, return a
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 102\hspace{1em}}}%
+\@y{\@s{0}%
+ new bag of messages with one more \ensuremath{m} in it.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 103\hspace{1em}} WithMessage ( m ,\, msgs )
+ \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 104\hspace{1em}}\@s{18.03} {\IF} m \.{\in}
+ {\DOMAIN} msgs \.{\THEN}}%
+ \@x{\makebox[0pt][r]{\scriptsize 105\hspace{1em}}\@s{35.86} [ msgs {\EXCEPT}
+ {\bang} [ m ] \.{=} msgs [ m ] \.{+} 1 ]}%
+\@x{\makebox[0pt][r]{\scriptsize 106\hspace{1em}}\@s{18.03} \.{\ELSE}}%
+ \@x{\makebox[0pt][r]{\scriptsize 107\hspace{1em}}\@s{36.07} msgs \.{\,@@\,} (
+ m \.{\colongt} 1 )}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 109\hspace{1em}}}%
+\@y{\@s{0}%
+ Helper for \ensuremath{Discard} and \ensuremath{Reply}. Given a message
+ \ensuremath{m} and bag of messages, return
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 110\hspace{1em}}}%
+\@y{\@s{0}%
+ a new bag of messages with one less \ensuremath{m} in it.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 111\hspace{1em}} WithoutMessage ( m ,\, msgs
+ ) \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 112\hspace{1em}}\@s{18.03} {\IF} m \.{\in}
+ {\DOMAIN} msgs \.{\THEN}}%
+ \@x{\makebox[0pt][r]{\scriptsize 113\hspace{1em}}\@s{35.86} [ msgs {\EXCEPT}
+ {\bang} [ m ] \.{=} msgs [ m ] \.{-} 1 ]}%
+\@x{\makebox[0pt][r]{\scriptsize 114\hspace{1em}}\@s{18.03} \.{\ELSE}}%
+\@x{\makebox[0pt][r]{\scriptsize 115\hspace{1em}}\@s{36.07} msgs}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 117\hspace{1em}}}%
+\@y{\@s{0}%
+ Add a message to the bag of messages.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 118\hspace{1em}} Send ( m ) \.{\defeq}
+ messages \.{'} \.{=} WithMessage ( m ,\, messages )}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 120\hspace{1em}}}%
+\@y{\@s{0}%
+ Remove a message from the bag of messages. Used when a server is done
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 121\hspace{1em}}}%
+\@y{\@s{0}%
+ processing a message.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 122\hspace{1em}} Discard ( m ) \.{\defeq}
+ messages \.{'} \.{=} WithoutMessage ( m ,\, messages )}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 124\hspace{1em}}}%
+\@y{\@s{0}%
+ Combination of \ensuremath{Send} and \ensuremath{Discard
+}}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 125\hspace{1em}} Reply ( response ,\,
+ request ) \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 126\hspace{1em}}\@s{18.03} messages \.{'}
+ \.{=} WithoutMessage ( request ,\, WithMessage ( response ,\, messages ) )}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 128\hspace{1em}}}%
+\@y{\@s{0}%
+ Return the minimum value from a set, or undefined if the set is empty.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 129\hspace{1em}} Min ( s ) \.{\defeq}
+ {\CHOOSE} x \.{\in} s \.{:} \A\, y \.{\in} s \.{:} x \.{\leq} y}%
+\@x{\makebox[0pt][r]{\scriptsize 130\hspace{1em}}}%
+\@y{\@s{0}%
+ Return the maximum value from a set, or undefined if the set is empty.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 131\hspace{1em}} Max ( s ) \.{\defeq}
+ {\CHOOSE} x \.{\in} s \.{:} \A\, y \.{\in} s \.{:} x \.{\geq} y}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 133\hspace{1em}}}\midbar\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 134\hspace{1em}}}%
+\@y{\@s{0}%
+ Define initial values for all variables
+}%
+\@xx{}%
+\@pvspace{8.0pt}%
+ \@x{\makebox[0pt][r]{\scriptsize 136\hspace{1em}} InitHistoryVars \.{\defeq}
+ \.{\land} elections \.{=} \{ \}}%
+ \@x{\makebox[0pt][r]{\scriptsize 137\hspace{1em}}\@s{96.09} \.{\land}
+ allLogs\@s{12.27} \.{=} \{ \}}%
+ \@x{\makebox[0pt][r]{\scriptsize 138\hspace{1em}}\@s{96.09} \.{\land}
+ voterLog\@s{0.19} \.{=} [ i \.{\in} Server \.{\mapsto} [ j \.{\in} \{ \}
+ \.{\mapsto} {\langle} {\rangle} ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 139\hspace{1em}} InitServerVars \.{\defeq}
+ \.{\land} currentTerm \.{=} [ i \.{\in} Server \.{\mapsto} 1 ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 140\hspace{1em}}\@s{91.44} \.{\land}
+ state\@s{37.65} \.{=} [ i \.{\in} Server \.{\mapsto} Follower ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 141\hspace{1em}}\@s{91.44} \.{\land}
+ votedFor\@s{18.81} \.{=} [ i \.{\in} Server \.{\mapsto} Nil ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 142\hspace{1em}} InitCandidateVars
+ \.{\defeq} \.{\land} votesResponded \.{=} [ i \.{\in} Server \.{\mapsto} \{
+ \} ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 143\hspace{1em}}\@s{109.35} \.{\land}
+ votesGranted\@s{11.40} \.{=} [ i \.{\in} Server \.{\mapsto} \{ \} ]}%
+\@x{\makebox[0pt][r]{\scriptsize 144\hspace{1em}}}%
+\@y{\@s{0}%
+ The values \ensuremath{nextIndex[i][i]} and \ensuremath{matchIndex[i][i]}
+ are never read, since the
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 145\hspace{1em}}}%
+\@y{\@s{0}%
+ leader does not send itself messages. It\mbox{'}s still easier to include
+ these
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 146\hspace{1em}}}%
+\@y{\@s{0}%
+ in the functions.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 147\hspace{1em}} InitLeaderVars \.{\defeq}
+ \.{\land} nextIndex\@s{8.91} \.{=} [ i \.{\in} Server \.{\mapsto} [ j
+ \.{\in} Server \.{\mapsto} 1 ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 148\hspace{1em}}\@s{92.58} \.{\land}
+ matchIndex \.{=} [ i \.{\in} Server \.{\mapsto} [ j \.{\in} Server
+ \.{\mapsto} 0 ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 149\hspace{1em}} InitLogVars \.{\defeq}
+ \.{\land} log\@s{53.05} \.{=} [ i \.{\in} Server \.{\mapsto} {\langle}
+ {\rangle} ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 150\hspace{1em}}\@s{77.32} \.{\land}
+ commitIndex\@s{4.50} \.{=} [ i \.{\in} Server \.{\mapsto} 0 ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 151\hspace{1em}} Init \.{\defeq} \.{\land}
+ messages \.{=} [ m \.{\in} \{ \} \.{\mapsto} 0 ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 152\hspace{1em}}\@s{39.09} \.{\land}
+ InitHistoryVars}%
+ \@x{\makebox[0pt][r]{\scriptsize 153\hspace{1em}}\@s{39.09} \.{\land}
+ InitServerVars}%
+ \@x{\makebox[0pt][r]{\scriptsize 154\hspace{1em}}\@s{39.09} \.{\land}
+ InitCandidateVars}%
+ \@x{\makebox[0pt][r]{\scriptsize 155\hspace{1em}}\@s{39.09} \.{\land}
+ InitLeaderVars}%
+ \@x{\makebox[0pt][r]{\scriptsize 156\hspace{1em}}\@s{39.09} \.{\land}
+ InitLogVars}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 158\hspace{1em}}}\midbar\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 159\hspace{1em}}}%
+\@y{\@s{0}%
+ Define state transitions
+}%
+\@xx{}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 161\hspace{1em}}}%
+\@y{\@s{0}%
+ Server \ensuremath{i} restarts from stable storage.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 162\hspace{1em}}}%
+\@y{\@s{0}%
+ It loses everything but its \ensuremath{currentTerm}, \ensuremath{votedFor},
+ and \ensuremath{log}.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 163\hspace{1em}} Restart ( i ) \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 164\hspace{1em}}\@s{18.03}
+ \.{\land}\@s{5.26} state \.{'}\@s{51.11} \.{=} [ state {\EXCEPT} {\bang} [ i
+ ] \.{=} Follower ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 165\hspace{1em}}\@s{18.03}
+ \.{\land}\@s{5.26} votesResponded \.{'} \.{=} [ votesResponded {\EXCEPT}
+ {\bang} [ i ] \.{=} \{ \} ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 166\hspace{1em}}\@s{18.03}
+ \.{\land}\@s{5.26} votesGranted \.{'}\@s{11.40} \.{=} [ votesGranted
+ {\EXCEPT} {\bang} [ i ] \.{=} \{ \} ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 167\hspace{1em}}\@s{18.03}
+ \.{\land}\@s{5.26} voterLog \.{'}\@s{34.64} \.{=} [ voterLog {\EXCEPT}
+ {\bang} [ i ] \.{=} [ j \.{\in} \{ \} \.{\mapsto} {\langle} {\rangle} ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 168\hspace{1em}}\@s{18.03}
+ \.{\land}\@s{5.26} nextIndex \.{'}\@s{28.59} \.{=} [ nextIndex {\EXCEPT}
+ {\bang} [ i ] \.{=} [ j \.{\in} Server \.{\mapsto} 1 ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 169\hspace{1em}}\@s{18.03}
+ \.{\land}\@s{5.26} matchIndex \.{'}\@s{19.68} \.{=} [ matchIndex {\EXCEPT}
+ {\bang} [ i ] \.{=} [ j \.{\in} Server \.{\mapsto} 0 ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 170\hspace{1em}}\@s{18.03}
+ \.{\land}\@s{5.26} commitIndex \.{'}\@s{11.93} \.{=} [ commitIndex {\EXCEPT}
+ {\bang} [ i ] \.{=} 0 ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 171\hspace{1em}}\@s{18.03}
+ \.{\land}\@s{5.26} {\UNCHANGED} {\langle} messages ,\, currentTerm ,\,
+ votedFor ,\, log ,\, elections {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 173\hspace{1em}}}%
+\@y{\@s{0}%
+ Server \ensuremath{i} times out and starts a new election.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 174\hspace{1em}} Timeout ( i ) \.{\defeq}
+ \.{\land} state [ i ] \.{\in} \{ Follower ,\, Candidate \}}%
+ \@x{\makebox[0pt][r]{\scriptsize 175\hspace{1em}}\@s{74.44} \.{\land} state
+ \.{'} \.{=} [ state {\EXCEPT} {\bang} [ i ] \.{=} Candidate ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 176\hspace{1em}}\@s{74.44} \.{\land}
+ currentTerm \.{'} \.{=} [ currentTerm {\EXCEPT} {\bang} [ i ] \.{=}
+ currentTerm [ i ] \.{+} 1 ]}%
+\@x{\makebox[0pt][r]{\scriptsize 177\hspace{1em}}\@s{74.44}}%
+\@y{\@s{0}%
+ Most implementations would probably just set the local vote
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 178\hspace{1em}}\@s{74.44}}%
+\@y{\@s{0}%
+ atomically, but messaging localhost for it is weaker.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 179\hspace{1em}}\@s{74.44} \.{\land}
+ votedFor \.{'} \.{=} [ votedFor {\EXCEPT} {\bang} [ i ] \.{=} Nil ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 180\hspace{1em}}\@s{74.44} \.{\land}
+ votesResponded \.{'} \.{=} [ votesResponded {\EXCEPT} {\bang} [ i ] \.{=} \{
+ \} ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 181\hspace{1em}}\@s{74.44} \.{\land}
+ votesGranted \.{'}\@s{11.40} \.{=} [ votesGranted {\EXCEPT} {\bang} [ i ]
+ \.{=} \{ \} ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 182\hspace{1em}}\@s{74.44} \.{\land}
+ voterLog \.{'}\@s{33.04} \.{=} [ voterLog {\EXCEPT} {\bang} [ i ] \.{=} [ j
+ \.{\in} \{ \} \.{\mapsto} {\langle} {\rangle} ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 183\hspace{1em}}\@s{74.44} \.{\land}
+ {\UNCHANGED} {\langle} messages ,\, leaderVars ,\, logVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 185\hspace{1em}}}%
+\@y{\@s{0}%
+ Candidate \ensuremath{i} sends \ensuremath{j} a \ensuremath{RequestVote}
+ request.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 186\hspace{1em}} RequestVote ( i ,\, j )
+ \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 187\hspace{1em}}\@s{18.03} \.{\land} state [
+ i ] \.{=} Candidate}%
+ \@x{\makebox[0pt][r]{\scriptsize 188\hspace{1em}}\@s{18.03} \.{\land} j
+ \.{\notin} votesResponded [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 189\hspace{1em}}\@s{18.03} \.{\land} Send (
+ [ mtype\@s{40.45} \.{\mapsto} RequestVoteRequest ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 190\hspace{1em}}\@s{61.58} mterm\@s{37.21}
+ \.{\mapsto} currentTerm [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 191\hspace{1em}}\@s{61.58}
+ mlastLogTerm\@s{0.96} \.{\mapsto} LastTerm ( log [ i ] ) ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 192\hspace{1em}}\@s{61.58} mlastLogIndex
+ \.{\mapsto} Len ( log [ i ] ) ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 193\hspace{1em}}\@s{61.58} msource\@s{29.95}
+ \.{\mapsto} i ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 194\hspace{1em}}\@s{61.58} mdest\@s{40.51}
+ \.{\mapsto} j ] )}%
+ \@x{\makebox[0pt][r]{\scriptsize 195\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, candidateVars ,\, leaderVars ,\,
+ logVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 197\hspace{1em}}}%
+\@y{\@s{0}%
+ Leader \ensuremath{i} sends \ensuremath{j} an \ensuremath{AppendEntries}
+ request containing up to 1 entry.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 198\hspace{1em}}}%
+\@y{\@s{0}%
+ While implementations may want to send more than 1 at a time, this spec uses
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 199\hspace{1em}}}%
+\@y{\@s{0}%
+ just 1 because it minimizes atomic regions without loss of generality.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 200\hspace{1em}} AppendEntries ( i ,\, j )
+ \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 201\hspace{1em}}\@s{18.03} \.{\land} i
+ \.{\neq} j}%
+ \@x{\makebox[0pt][r]{\scriptsize 202\hspace{1em}}\@s{18.03} \.{\land} state [
+ i ] \.{=} Leader}%
+ \@x{\makebox[0pt][r]{\scriptsize 203\hspace{1em}}\@s{18.03} \.{\land}
+ \.{\LET} prevLogIndex \.{\defeq} nextIndex [ i ] [ j ] \.{-} 1}%
+ \@x{\makebox[0pt][r]{\scriptsize 204\hspace{1em}}\@s{52.54} prevLogTerm
+ \.{\defeq} {\IF} prevLogIndex \.{>} 0 \.{\THEN}}%
+ \@x{\makebox[0pt][r]{\scriptsize 205\hspace{1em}}\@s{153.60} log [ i ] [
+ prevLogIndex ] . term}%
+\@x{\makebox[0pt][r]{\scriptsize 206\hspace{1em}}\@s{135.78} \.{\ELSE}}%
+\@x{\makebox[0pt][r]{\scriptsize 207\hspace{1em}}\@s{153.82} 0}%
+\@x{\makebox[0pt][r]{\scriptsize 208\hspace{1em}}\@s{52.54}}%
+\@y{\@s{0}%
+ Send up to 1 entry, constrained by the end of the \ensuremath{log}.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 209\hspace{1em}}\@s{52.54} lastEntry
+ \.{\defeq} Min ( \{ Len ( log [ i ] ) ,\, nextIndex [ i ] [ j ] \.{+} 1 \}
+ )}%
+ \@x{\makebox[0pt][r]{\scriptsize 210\hspace{1em}}\@s{52.54} entries
+ \.{\defeq} SubSeq ( log [ i ] ,\, nextIndex [ i ] [ j ] ,\, lastEntry )}%
+ \@x{\makebox[0pt][r]{\scriptsize 211\hspace{1em}}\@s{30.20} \.{\IN} Send ( [
+ mtype\@s{48.17} \.{\mapsto} AppendEntriesRequest ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 212\hspace{1em}}\@s{83.92} mterm\@s{44.94}
+ \.{\mapsto} currentTerm [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 213\hspace{1em}}\@s{83.92}
+ mprevLogIndex\@s{4.50} \.{\mapsto} prevLogIndex ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 214\hspace{1em}}\@s{83.92}
+ mprevLogTerm\@s{9.01} \.{\mapsto} prevLogTerm ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 215\hspace{1em}}\@s{83.92}
+ mentries\@s{34.81} \.{\mapsto} entries ,\,}%
+\@x{\makebox[0pt][r]{\scriptsize 216\hspace{1em}}\@s{83.92}}%
+\@y{\@s{0}%
+ \ensuremath{mlog} is used as a history variable for the proof.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 217\hspace{1em}}\@s{83.92}}%
+\@y{\@s{0}%
+ It would not exist in a real implementation.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 218\hspace{1em}}\@s{83.92} mlog\@s{57.56}
+ \.{\mapsto} log [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 219\hspace{1em}}\@s{83.92}
+ mcommitIndex\@s{9.02} \.{\mapsto} Min ( \{ commitIndex [ i ] ,\, lastEntry
+ \} ) ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 220\hspace{1em}}\@s{83.92} msource\@s{41.06}
+ \.{\mapsto} i ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 221\hspace{1em}}\@s{83.92} mdest\@s{51.62}
+ \.{\mapsto} j ] )}%
+ \@x{\makebox[0pt][r]{\scriptsize 222\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, candidateVars ,\, leaderVars ,\,
+ logVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 224\hspace{1em}}}%
+\@y{\@s{0}%
+ Candidate \ensuremath{i} transitions to leader.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 225\hspace{1em}} BecomeLeader ( i )
+ \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 226\hspace{1em}}\@s{18.03} \.{\land} state [
+ i ] \.{=} Candidate}%
+ \@x{\makebox[0pt][r]{\scriptsize 227\hspace{1em}}\@s{18.03} \.{\land}
+ votesGranted [ i ] \.{\in} Quorum}%
+ \@x{\makebox[0pt][r]{\scriptsize 228\hspace{1em}}\@s{18.03} \.{\land} state
+ \.{'}\@s{33.02} \.{=} [ state {\EXCEPT} {\bang} [ i ] \.{=} Leader ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 229\hspace{1em}}\@s{18.03} \.{\land}
+ nextIndex \.{'}\@s{8.91} \.{=} [ nextIndex {\EXCEPT} {\bang} [ i ] \.{=}}%
+ \@x{\makebox[0pt][r]{\scriptsize 230\hspace{1em}}\@s{120.41} [ j \.{\in}
+ Server \.{\mapsto} Len ( log [ i ] ) \.{+} 1 ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 231\hspace{1em}}\@s{18.03} \.{\land}
+ matchIndex \.{'} \.{=} [ matchIndex {\EXCEPT} {\bang} [ i ] \.{=}}%
+ \@x{\makebox[0pt][r]{\scriptsize 232\hspace{1em}}\@s{120.41} [ j \.{\in}
+ Server \.{\mapsto} 0 ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 233\hspace{1em}}\@s{18.03} \.{\land}
+ elections \.{'}\@s{14.75} \.{=} elections \.{\cup}}%
+ \@x{\makebox[0pt][r]{\scriptsize 234\hspace{1em}}\@s{121.88} \{ [
+ eterm\@s{18.18} \.{\mapsto} currentTerm [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 235\hspace{1em}}\@s{130.40}
+ eleader\@s{11.97} \.{\mapsto} i ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 236\hspace{1em}}\@s{130.40} elog\@s{27.43}
+ \.{\mapsto} log [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 237\hspace{1em}}\@s{130.40} evotes\@s{16.59}
+ \.{\mapsto} votesGranted [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 238\hspace{1em}}\@s{130.40} evoterLog
+ \.{\mapsto} voterLog [ i ] ] \}}%
+ \@x{\makebox[0pt][r]{\scriptsize 239\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} messages ,\, currentTerm ,\, votedFor ,\,
+ candidateVars ,\, logVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 241\hspace{1em}}}%
+\@y{\@s{0}%
+ Leader \ensuremath{i} receives a client request to add \ensuremath{v} to the
+ \ensuremath{log}.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 242\hspace{1em}} ClientRequest ( i ,\, v )
+ \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 243\hspace{1em}}\@s{18.03} \.{\land} state [
+ i ] \.{=} Leader}%
+ \@x{\makebox[0pt][r]{\scriptsize 244\hspace{1em}}\@s{18.03} \.{\land}
+ \.{\LET} entry \.{\defeq} [ term\@s{4.50} \.{\mapsto} currentTerm [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 245\hspace{1em}}\@s{102.00} value\@s{2.42}
+ \.{\mapsto} v ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 246\hspace{1em}}\@s{57.05} newLog \.{\defeq}
+ Append ( log [ i ] ,\, entry )}%
+ \@x{\makebox[0pt][r]{\scriptsize 247\hspace{1em}}\@s{30.20} \.{\IN}\@s{4.50}
+ log \.{'} \.{=} [ log {\EXCEPT} {\bang} [ i ] \.{=} newLog ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 248\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} messages ,\, serverVars ,\, candidateVars ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 249\hspace{1em}}\@s{98.61} leaderVars ,\,
+ commitIndex {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 251\hspace{1em}}}%
+\@y{\@s{0}%
+ Leader \ensuremath{i} advances its \ensuremath{commitIndex}.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 252\hspace{1em}}}%
+\@y{\@s{0}%
+ This is done as a separate step from handling \ensuremath{AppendEntries}
+ responses,
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 253\hspace{1em}}}%
+\@y{\@s{0}%
+ in part to minimize atomic regions, and in part so that leaders of
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 254\hspace{1em}}}%
+\@y{\@s{0}%
+ single-server clusters are able to mark entries committed.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 255\hspace{1em}} AdvanceCommitIndex ( i )
+ \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 256\hspace{1em}}\@s{18.03} \.{\land} state [
+ i ] \.{=} Leader}%
+ \@x{\makebox[0pt][r]{\scriptsize 257\hspace{1em}}\@s{18.03} \.{\land}
+ \.{\LET}}%
+\@y{\@s{0}%
+ The set of servers that agree up through index.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 258\hspace{1em}}\@s{52.54} Agree ( index )
+ \.{\defeq} \{ i \} \.{\cup} \{ k \.{\in} Server \.{:}}%
+ \@x{\makebox[0pt][r]{\scriptsize 259\hspace{1em}}\@s{183.60} matchIndex \.{'}
+ [ i ] [ k ] \.{\geq} index \}}%
+\@x{\makebox[0pt][r]{\scriptsize 260\hspace{1em}}\@s{52.54}}%
+\@y{\@s{0}%
+ The maximum indexes for which a quorum agrees
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 261\hspace{1em}}\@s{52.54} agreeIndexes
+ \.{\defeq} \{ index \.{\in} 1 \.{\dotdot} Len ( log [ i ] ) \.{:}}%
+ \@x{\makebox[0pt][r]{\scriptsize 262\hspace{1em}}\@s{157.45} Agree ( index )
+ \.{\in} Quorum \}}%
+\@x{\makebox[0pt][r]{\scriptsize 263\hspace{1em}}\@s{52.54}}%
+\@y{\@s{0}%
+ New value for \ensuremath{commitIndex\.{'}[i]
+}}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 264\hspace{1em}}\@s{52.54} newCommitIndex
+ \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 265\hspace{1em}}\@s{66.07} {\IF} \.{\land}
+ agreeIndexes \.{\neq} \{ \}}%
+ \@x{\makebox[0pt][r]{\scriptsize 266\hspace{1em}}\@s{79.38} \.{\land} log [ i
+ ] [ Max ( agreeIndexes ) ] . term \.{=} currentTerm [ i ]}%
+\@x{\makebox[0pt][r]{\scriptsize 267\hspace{1em}}\@s{66.07} \.{\THEN}}%
+ \@x{\makebox[0pt][r]{\scriptsize 268\hspace{1em}}\@s{84.11} Max (
+ agreeIndexes )}%
+\@x{\makebox[0pt][r]{\scriptsize 269\hspace{1em}}\@s{66.07} \.{\ELSE}}%
+ \@x{\makebox[0pt][r]{\scriptsize 270\hspace{1em}}\@s{84.11} commitIndex [ i
+ ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 271\hspace{1em}}\@s{30.20} \.{\IN}
+ commitIndex \.{'} \.{=} [ commitIndex {\EXCEPT} {\bang} [ i ] \.{=}
+ newCommitIndex ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 272\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} messages ,\, serverVars ,\, candidateVars ,\,
+ leaderVars ,\, log {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 274\hspace{1em}}}\midbar\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 275\hspace{1em}}}%
+\@y{\@s{0}%
+ Message handlers
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 276\hspace{1em}}}%
+\@y{\@s{0}%
+ \ensuremath{i \.{=}} recipient, \ensuremath{j \.{=}} sender, \ensuremath{m
+ \.{=}} message
+}%
+\@xx{}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 278\hspace{1em}}}%
+\@y{\@s{0}%
+ Server \ensuremath{i} receives a \ensuremath{RequestVote} request from
+ server \ensuremath{j} with
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 279\hspace{1em}}}%
+\@y{\@s{0}%
+ \ensuremath{m.mterm \.{\leq} currentTerm[i]}.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 280\hspace{1em}} HandleRequestVoteRequest (
+ i ,\, j ,\, m ) \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 281\hspace{1em}}\@s{18.03} \.{\LET} logOk
+ \.{\defeq} \.{\lor} m . mlastLogTerm \.{>} LastTerm ( log [ i ] )}%
+ \@x{\makebox[0pt][r]{\scriptsize 282\hspace{1em}}\@s{88.54} \.{\lor}
+ \.{\land} m . mlastLogTerm \.{=} LastTerm ( log [ i ] )}%
+ \@x{\makebox[0pt][r]{\scriptsize 283\hspace{1em}}\@s{100.71} \.{\land} m .
+ mlastLogIndex \.{\geq} Len ( log [ i ] )}%
+ \@x{\makebox[0pt][r]{\scriptsize 284\hspace{1em}}\@s{40.37} grant\@s{1.95}
+ \.{\defeq} \.{\land} m . mterm \.{=} currentTerm [ i ]}%
+\@x{\makebox[0pt][r]{\scriptsize 285\hspace{1em}}\@s{88.54} \.{\land} logOk}%
+ \@x{\makebox[0pt][r]{\scriptsize 286\hspace{1em}}\@s{88.54} \.{\land}
+ votedFor [ i ] \.{\in} \{ Nil ,\, j \}}%
+ \@x{\makebox[0pt][r]{\scriptsize 287\hspace{1em}}\@s{18.03} \.{\IN} \.{\land}
+ m . mterm \.{\leq} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 288\hspace{1em}}\@s{40.37} \.{\land}
+ \.{\lor} grant\@s{7.30} \.{\land} votedFor \.{'} \.{=} [ votedFor {\EXCEPT}
+ {\bang} [ i ] \.{=} j ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 289\hspace{1em}}\@s{52.54} \.{\lor} {\lnot}
+ grant \.{\land} {\UNCHANGED} votedFor}%
+ \@x{\makebox[0pt][r]{\scriptsize 290\hspace{1em}}\@s{40.37} \.{\land} Reply (
+ [ mtype\@s{38.58} \.{\mapsto} RequestVoteResponse ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 291\hspace{1em}}\@s{86.98} mterm\@s{35.34}
+ \.{\mapsto} currentTerm [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 292\hspace{1em}}\@s{86.98} mvoteGranted
+ \.{\mapsto} grant ,\,}%
+\@x{\makebox[0pt][r]{\scriptsize 293\hspace{1em}}\@s{86.98}}%
+\@y{\@s{0}%
+ \ensuremath{mlog} is used just for the \ensuremath{elections} history
+ variable for
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 294\hspace{1em}}\@s{86.98}}%
+\@y{\@s{0}%
+ the proof. It would not exist in a real implementation.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 295\hspace{1em}}\@s{86.98} mlog\@s{39.05}
+ \.{\mapsto} log [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 296\hspace{1em}}\@s{86.98} msource\@s{22.55}
+ \.{\mapsto} i ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 297\hspace{1em}}\@s{86.98} mdest\@s{33.10}
+ \.{\mapsto} j ] ,\,}%
+\@x{\makebox[0pt][r]{\scriptsize 298\hspace{1em}}\@s{86.98} m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 299\hspace{1em}}\@s{40.37} \.{\land}
+ {\UNCHANGED} {\langle} state ,\, currentTerm ,\, candidateVars ,\,
+ leaderVars ,\, logVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 301\hspace{1em}}}%
+\@y{\@s{0}%
+ Server \ensuremath{i} receives a \ensuremath{RequestVote} response from
+ server \ensuremath{j} with
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 302\hspace{1em}}}%
+\@y{\@s{0}%
+ \ensuremath{m.mterm \.{=} currentTerm[i]}.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 303\hspace{1em}} HandleRequestVoteResponse (
+ i ,\, j ,\, m ) \.{\defeq}}%
+\@x{\makebox[0pt][r]{\scriptsize 304\hspace{1em}}\@s{18.03}}%
+\@y{\@s{0}%
+ This tallies votes even when the current state is not
+ \ensuremath{Candidate}, but
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 305\hspace{1em}}\@s{18.03}}%
+\@y{\@s{0}%
+ they won\mbox{'}t be looked at, so it doesn\mbox{'}t matter.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 306\hspace{1em}}\@s{18.03} \.{\land} m .
+ mterm \.{=} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 307\hspace{1em}}\@s{18.03} \.{\land}
+ votesResponded \.{'} \.{=} [ votesResponded {\EXCEPT} {\bang} [ i ] \.{=}}%
+ \@x{\makebox[0pt][r]{\scriptsize 308\hspace{1em}}\@s{143.01} votesResponded [
+ i ] \.{\cup} \{ j \} ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 309\hspace{1em}}\@s{18.03} \.{\land}
+ \.{\lor} \.{\land} m . mvoteGranted}%
+ \@x{\makebox[0pt][r]{\scriptsize 310\hspace{1em}}\@s{42.37} \.{\land}
+ votesGranted \.{'} \.{=} [ votesGranted {\EXCEPT} {\bang} [ i ] \.{=}}%
+ \@x{\makebox[0pt][r]{\scriptsize 311\hspace{1em}}\@s{155.93} votesGranted [ i
+ ] \.{\cup} \{ j \} ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 312\hspace{1em}}\@s{42.37} \.{\land}
+ voterLog \.{'} \.{=} [ voterLog {\EXCEPT} {\bang} [ i ] \.{=}}%
+ \@x{\makebox[0pt][r]{\scriptsize 313\hspace{1em}}\@s{134.30} voterLog [ i ]
+ \.{\,@@\,} ( j \.{\colongt} m . mlog ) ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 314\hspace{1em}}\@s{30.20} \.{\lor}
+ \.{\land} {\lnot} m . mvoteGranted}%
+ \@x{\makebox[0pt][r]{\scriptsize 315\hspace{1em}}\@s{42.37} \.{\land}
+ {\UNCHANGED} {\langle} votesGranted ,\, voterLog {\rangle}}%
+ \@x{\makebox[0pt][r]{\scriptsize 316\hspace{1em}}\@s{18.03} \.{\land} Discard
+ ( m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 317\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, votedFor ,\, leaderVars ,\, logVars
+ {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 319\hspace{1em}}}%
+\@y{\@s{0}%
+ Server \ensuremath{i} receives an \ensuremath{AppendEntries} request from
+ server \ensuremath{j} with
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 320\hspace{1em}}}%
+\@y{\@s{0}%
+ \ensuremath{m.mterm \.{\leq} currentTerm[i]}. This just handles
+ \ensuremath{m.entries} of length 0 or 1, but
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 321\hspace{1em}}}%
+\@y{\@s{0}%
+ implementations could safely accept more by treating them the same as
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 322\hspace{1em}}}%
+\@y{\@s{0}%
+ multiple independent requests of 1 entry.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 323\hspace{1em}} HandleAppendEntriesRequest
+ ( i ,\, j ,\, m ) \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 324\hspace{1em}}\@s{18.03} \.{\LET} logOk
+ \.{\defeq} \.{\lor} m . mprevLogIndex \.{=} 0}%
+ \@x{\makebox[0pt][r]{\scriptsize 325\hspace{1em}}\@s{88.54} \.{\lor}
+ \.{\land} m . mprevLogIndex \.{>} 0}%
+ \@x{\makebox[0pt][r]{\scriptsize 326\hspace{1em}}\@s{100.71} \.{\land} m .
+ mprevLogIndex \.{\leq} Len ( log [ i ] )}%
+ \@x{\makebox[0pt][r]{\scriptsize 327\hspace{1em}}\@s{100.71} \.{\land} m .
+ mprevLogTerm \.{=} log [ i ] [ m . mprevLogIndex ] . term}%
+ \@x{\makebox[0pt][r]{\scriptsize 328\hspace{1em}}\@s{18.03} \.{\IN} \.{\land}
+ m . mterm \.{\leq} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 329\hspace{1em}}\@s{40.37} \.{\land}
+ \.{\lor} \.{\land}}%
+\@y{\@s{0}%
+ reject request
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 330\hspace{1em}}\@s{76.87} \.{\lor} m .
+ mterm \.{<} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 331\hspace{1em}}\@s{76.87} \.{\lor}
+ \.{\land} m . mterm \.{=} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 332\hspace{1em}}\@s{89.04} \.{\land} state [
+ i ] \.{=} Follower}%
+ \@x{\makebox[0pt][r]{\scriptsize 333\hspace{1em}}\@s{89.04} \.{\land} {\lnot}
+ logOk}%
+ \@x{\makebox[0pt][r]{\scriptsize 334\hspace{1em}}\@s{64.71} \.{\land} Reply (
+ [ mtype\@s{54.42} \.{\mapsto} AppendEntriesResponse ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 335\hspace{1em}}\@s{111.32} mterm\@s{51.18}
+ \.{\mapsto} currentTerm [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 336\hspace{1em}}\@s{111.32}
+ msuccess\@s{40.07} \.{\mapsto} {\FALSE} ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 337\hspace{1em}}\@s{111.32}
+ mmatchIndex\@s{18.04} \.{\mapsto} 0 ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 338\hspace{1em}}\@s{111.32}
+ msource\@s{43.92} \.{\mapsto} i ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 339\hspace{1em}}\@s{111.32} mdest\@s{54.48}
+ \.{\mapsto} j ] ,\,}%
+\@x{\makebox[0pt][r]{\scriptsize 340\hspace{1em}}\@s{111.32} m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 341\hspace{1em}}\@s{64.71} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, logVars {\rangle}}%
+\@x{\makebox[0pt][r]{\scriptsize 342\hspace{1em}}\@s{52.54} \.{\lor}}%
+\@y{\@s{0}%
+ return to follower state
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 343\hspace{1em}}\@s{64.71} \.{\land} m .
+ mterm \.{=} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 344\hspace{1em}}\@s{64.71} \.{\land} state [
+ i ] \.{=} Candidate}%
+ \@x{\makebox[0pt][r]{\scriptsize 345\hspace{1em}}\@s{64.71} \.{\land} state
+ \.{'} \.{=} [ state {\EXCEPT} {\bang} [ i ] \.{=} Follower ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 346\hspace{1em}}\@s{64.71} \.{\land}
+ {\UNCHANGED} {\langle} currentTerm ,\, votedFor ,\, logVars ,\, messages
+ {\rangle}}%
+\@x{\makebox[0pt][r]{\scriptsize 347\hspace{1em}}\@s{52.54} \.{\lor}}%
+\@y{\@s{0}%
+ accept request
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 348\hspace{1em}}\@s{64.71} \.{\land} m .
+ mterm \.{=} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 349\hspace{1em}}\@s{64.71} \.{\land} state [
+ i ] \.{=} Follower}%
+\@x{\makebox[0pt][r]{\scriptsize 350\hspace{1em}}\@s{64.71} \.{\land} logOk}%
+ \@x{\makebox[0pt][r]{\scriptsize 351\hspace{1em}}\@s{64.71} \.{\land}
+ \.{\LET} index \.{\defeq} m . mprevLogIndex \.{+} 1}%
+\@x{\makebox[0pt][r]{\scriptsize 352\hspace{1em}}\@s{76.87} \.{\IN} \.{\lor}}%
+\@y{\@s{0}%
+ already done with request
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 353\hspace{1em}}\@s{115.89} \.{\land}
+ \.{\lor} m . mentries \.{=} {\langle} {\rangle}}%
+ \@x{\makebox[0pt][r]{\scriptsize 354\hspace{1em}}\@s{128.05} \.{\lor}
+ \.{\land} Len ( log [ i ] ) \.{\geq} index}%
+ \@x{\makebox[0pt][r]{\scriptsize 355\hspace{1em}}\@s{140.22} \.{\land} log [
+ i ] [ index ] . term \.{=} m . mentries [ 1 ] . term}%
+\@x{\makebox[0pt][r]{\scriptsize 356\hspace{1em}}\@s{128.05}}%
+\@y{\@s{0}%
+ This could make our \ensuremath{commitIndex} decrease (for
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 357\hspace{1em}}\@s{128.05}}%
+\@y{\@s{0}%
+ example if we process an old, duplicated request),
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 358\hspace{1em}}\@s{128.05}}%
+\@y{\@s{0}%
+ but that doesn\mbox{'}t really affect anything.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 359\hspace{1em}}\@s{115.89} \.{\land}
+ commitIndex \.{'} \.{=} [ commitIndex {\EXCEPT} {\bang} [ i ] \.{=}}%
+ \@x{\makebox[0pt][r]{\scriptsize 360\hspace{1em}}\@s{228.93} m . mcommitIndex
+ ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 361\hspace{1em}}\@s{115.89} \.{\land} Reply
+ ( [ mtype\@s{54.42} \.{\mapsto} AppendEntriesResponse ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 362\hspace{1em}}\@s{162.50} mterm\@s{51.18}
+ \.{\mapsto} currentTerm [ i ] ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 363\hspace{1em}}\@s{162.50}
+ msuccess\@s{40.07} \.{\mapsto} {\TRUE} ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 364\hspace{1em}}\@s{162.50}
+ mmatchIndex\@s{18.03} \.{\mapsto} m . mprevLogIndex \.{+}}%
+ \@x{\makebox[0pt][r]{\scriptsize 365\hspace{1em}}\@s{262.76} Len ( m .
+ mentries ) ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 366\hspace{1em}}\@s{162.50}
+ msource\@s{43.92} \.{\mapsto} i ,\,}%
+ \@x{\makebox[0pt][r]{\scriptsize 367\hspace{1em}}\@s{162.50} mdest\@s{54.48}
+ \.{\mapsto} j ] ,\,}%
+\@x{\makebox[0pt][r]{\scriptsize 368\hspace{1em}}\@s{162.50} m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 369\hspace{1em}}\@s{115.89} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, logVars {\rangle}}%
+\@x{\makebox[0pt][r]{\scriptsize 370\hspace{1em}}\@s{99.21} \.{\lor}}%
+\@y{\@s{0}%
+ conflict: remove 1 entry
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 371\hspace{1em}}\@s{115.89} \.{\land} m .
+ mentries \.{\neq} {\langle} {\rangle}}%
+ \@x{\makebox[0pt][r]{\scriptsize 372\hspace{1em}}\@s{115.89} \.{\land} Len (
+ log [ i ] ) \.{\geq} index}%
+ \@x{\makebox[0pt][r]{\scriptsize 373\hspace{1em}}\@s{115.89} \.{\land} log [
+ i ] [ index ] . term\@s{14.57} \.{\neq} m . mentries [ 1 ] . term}%
+ \@x{\makebox[0pt][r]{\scriptsize 374\hspace{1em}}\@s{115.89} \.{\land}
+ \.{\LET} new \.{\defeq} [ index2 \.{\in} 1 \.{\dotdot} ( Len ( log [ i ] )
+ \.{-} 1 ) \.{\mapsto}}%
+ \@x{\makebox[0pt][r]{\scriptsize 375\hspace{1em}}\@s{211.80} log [ i ] [
+ index2 ] ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 376\hspace{1em}}\@s{128.05} \.{\IN} log
+ \.{'} \.{=} [ log {\EXCEPT} {\bang} [ i ] \.{=} new ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 377\hspace{1em}}\@s{115.89} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, commitIndex ,\, messages {\rangle}}%
+\@x{\makebox[0pt][r]{\scriptsize 378\hspace{1em}}\@s{99.21} \.{\lor}}%
+\@y{\@s{0}%
+ no conflict: append entry
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 379\hspace{1em}}\@s{115.89} \.{\land} m .
+ mentries \.{\neq} {\langle} {\rangle}}%
+ \@x{\makebox[0pt][r]{\scriptsize 380\hspace{1em}}\@s{115.89} \.{\land} Len (
+ log [ i ] ) \.{=} m . mprevLogIndex}%
+ \@x{\makebox[0pt][r]{\scriptsize 381\hspace{1em}}\@s{115.89} \.{\land} log
+ \.{'} \.{=} [ log {\EXCEPT} {\bang} [ i ] \.{=}}%
+ \@x{\makebox[0pt][r]{\scriptsize 382\hspace{1em}}\@s{176.18} Append ( log [ i
+ ] ,\, m . mentries [ 1 ] ) ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 383\hspace{1em}}\@s{115.89} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, commitIndex ,\, messages {\rangle}}%
+ \@x{\makebox[0pt][r]{\scriptsize 384\hspace{1em}}\@s{40.37} \.{\land}
+ {\UNCHANGED} {\langle} candidateVars ,\, leaderVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 386\hspace{1em}}}%
+\@y{\@s{0}%
+ Server \ensuremath{i} receives an \ensuremath{AppendEntries} response from
+ server \ensuremath{j} with
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 387\hspace{1em}}}%
+\@y{\@s{0}%
+ \ensuremath{m.mterm \.{=} currentTerm[i]}.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 388\hspace{1em}} HandleAppendEntriesResponse
+ ( i ,\, j ,\, m ) \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 389\hspace{1em}}\@s{18.03} \.{\land} m .
+ mterm \.{=} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 390\hspace{1em}}\@s{18.03} \.{\land}
+ \.{\lor} \.{\land} m . msuccess}%
+\@y{\@s{0}%
+ successful
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 391\hspace{1em}}\@s{42.37} \.{\land}
+ nextIndex \.{'}\@s{8.91} \.{=} [ nextIndex\@s{4.50} {\EXCEPT} {\bang} [ i ]
+ [ j ]\@s{4.40} \.{=} m . mmatchIndex \.{+} 1 ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 392\hspace{1em}}\@s{42.37} \.{\land}
+ matchIndex \.{'} \.{=} [ matchIndex {\EXCEPT} {\bang} [ i ] [ j ] \.{=} m .
+ mmatchIndex ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 393\hspace{1em}}\@s{30.20} \.{\lor}
+ \.{\land} {\lnot} m . msuccess}%
+\@y{\@s{0}%
+ not successful
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 394\hspace{1em}}\@s{42.37} \.{\land}
+ nextIndex \.{'} \.{=} [ nextIndex {\EXCEPT} {\bang} [ i ] [ j ] \.{=}}%
+ \@x{\makebox[0pt][r]{\scriptsize 395\hspace{1em}}\@s{140.34} Max ( \{
+ nextIndex [ i ] [ j ] \.{-} 1 ,\, 1 \} ) ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 396\hspace{1em}}\@s{42.37} \.{\land}
+ {\UNCHANGED} {\langle} matchIndex {\rangle}}%
+ \@x{\makebox[0pt][r]{\scriptsize 397\hspace{1em}}\@s{18.03} \.{\land} Discard
+ ( m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 398\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, candidateVars ,\, logVars ,\,
+ elections {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 400\hspace{1em}}}%
+\@y{\@s{0}%
+ Any \ensuremath{RPC} with a newer term causes the recipient to advance its
+ term first.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 401\hspace{1em}} UpdateTerm ( i ,\, j ,\, m
+ ) \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 402\hspace{1em}}\@s{18.03} \.{\land} m .
+ mterm \.{>} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 403\hspace{1em}}\@s{18.03} \.{\land}
+ currentTerm \.{'}\@s{13.52} \.{=} [ currentTerm {\EXCEPT} {\bang} [ i ]
+ \.{=} m . mterm ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 404\hspace{1em}}\@s{18.03} \.{\land} state
+ \.{'}\@s{51.18} \.{=} [ state\@s{27.05} {\EXCEPT} {\bang} [ i ]\@s{10.59}
+ \.{=} Follower ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 405\hspace{1em}}\@s{18.03} \.{\land}
+ votedFor \.{'}\@s{32.34} \.{=} [ votedFor\@s{13.52} {\EXCEPT} {\bang} [ i
+ ]\@s{5.28} \.{=} Nil ]}%
+\@x{\makebox[0pt][r]{\scriptsize 406\hspace{1em}}\@s{30.20}}%
+\@y{\@s{0}%
+ messages is unchanged so \ensuremath{m} can be processed further.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 407\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} messages ,\, candidateVars ,\, leaderVars ,\, logVars
+ {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 409\hspace{1em}}}%
+\@y{\@s{0}%
+ Responses with stale terms are ignored.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 410\hspace{1em}} DropStaleResponse ( i ,\, j
+ ,\, m ) \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 411\hspace{1em}}\@s{18.03} \.{\land} m .
+ mterm \.{<} currentTerm [ i ]}%
+ \@x{\makebox[0pt][r]{\scriptsize 412\hspace{1em}}\@s{18.03} \.{\land} Discard
+ ( m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 413\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, candidateVars ,\, leaderVars ,\,
+ logVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 415\hspace{1em}}}%
+\@y{\@s{0}%
+ Receive a message.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 416\hspace{1em}} Receive ( m ) \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 417\hspace{1em}}\@s{18.03} \.{\LET}
+ i\@s{0.46} \.{\defeq} m . mdest}%
+ \@x{\makebox[0pt][r]{\scriptsize 418\hspace{1em}}\@s{40.37} j \.{\defeq} m .
+ msource}%
+\@x{\makebox[0pt][r]{\scriptsize 419\hspace{1em}}\@s{18.03} \.{\IN}}%
+\@y{\@s{0}%
+ Any \ensuremath{RPC} with a newer term causes the recipient to advance
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 420\hspace{1em}}\@s{40.37}}%
+\@y{\@s{0}%
+ its term first. Responses with stale terms are ignored.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 421\hspace{1em}}\@s{40.37} \.{\lor}
+ UpdateTerm ( i ,\, j ,\, m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 422\hspace{1em}}\@s{40.37} \.{\lor}
+ \.{\land} m . mtype \.{=} RequestVoteRequest}%
+ \@x{\makebox[0pt][r]{\scriptsize 423\hspace{1em}}\@s{52.54} \.{\land}
+ HandleRequestVoteRequest ( i ,\, j ,\, m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 424\hspace{1em}}\@s{40.37} \.{\lor}
+ \.{\land} m . mtype \.{=} RequestVoteResponse}%
+ \@x{\makebox[0pt][r]{\scriptsize 425\hspace{1em}}\@s{52.54} \.{\land}
+ \.{\lor} DropStaleResponse ( i ,\, j ,\, m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 426\hspace{1em}}\@s{64.71} \.{\lor}
+ HandleRequestVoteResponse ( i ,\, j ,\, m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 427\hspace{1em}}\@s{40.37} \.{\lor}
+ \.{\land} m . mtype \.{=} AppendEntriesRequest}%
+ \@x{\makebox[0pt][r]{\scriptsize 428\hspace{1em}}\@s{52.54} \.{\land}
+ HandleAppendEntriesRequest ( i ,\, j ,\, m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 429\hspace{1em}}\@s{40.37} \.{\lor}
+ \.{\land} m . mtype \.{=} AppendEntriesResponse}%
+ \@x{\makebox[0pt][r]{\scriptsize 430\hspace{1em}}\@s{52.54} \.{\land}
+ \.{\lor} DropStaleResponse ( i ,\, j ,\, m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 431\hspace{1em}}\@s{64.71} \.{\lor}
+ HandleAppendEntriesResponse ( i ,\, j ,\, m )}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 433\hspace{1em}}}%
+\@y{\@s{0}%
+ End of message handlers.
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 434\hspace{1em}}}\midbar\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 435\hspace{1em}}}%
+\@y{\@s{0}%
+ Network state transitions
+}%
+\@xx{}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 437\hspace{1em}}}%
+\@y{\@s{0}%
+ The network duplicates a message
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 438\hspace{1em}} DuplicateMessage ( m )
+ \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 439\hspace{1em}}\@s{18.03} \.{\land} Send (
+ m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 440\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, candidateVars ,\, leaderVars ,\,
+ logVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 442\hspace{1em}}}%
+\@y{\@s{0}%
+ The network drops a message
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 443\hspace{1em}} DropMessage ( m )
+ \.{\defeq}}%
+ \@x{\makebox[0pt][r]{\scriptsize 444\hspace{1em}}\@s{18.03} \.{\land} Discard
+ ( m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 445\hspace{1em}}\@s{18.03} \.{\land}
+ {\UNCHANGED} {\langle} serverVars ,\, candidateVars ,\, leaderVars ,\,
+ logVars {\rangle}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 447\hspace{1em}}}\midbar\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 448\hspace{1em}}}%
+\@y{\@s{0}%
+ Defines how the variables may transition.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 449\hspace{1em}} Next \.{\defeq} \.{\land}
+ \.{\lor} \E\, i \.{\in} Server \.{:} Restart ( i )}%
+ \@x{\makebox[0pt][r]{\scriptsize 450\hspace{1em}}\@s{55.78} \.{\lor} \E\, i
+ \.{\in} Server \.{:} Timeout ( i )}%
+ \@x{\makebox[0pt][r]{\scriptsize 451\hspace{1em}}\@s{55.78} \.{\lor} \E\, i
+ ,\, j \.{\in} Server \.{:} RequestVote ( i ,\, j )}%
+ \@x{\makebox[0pt][r]{\scriptsize 452\hspace{1em}}\@s{55.78} \.{\lor} \E\, i
+ \.{\in} Server \.{:} BecomeLeader ( i )}%
+ \@x{\makebox[0pt][r]{\scriptsize 453\hspace{1em}}\@s{55.78} \.{\lor} \E\, i
+ \.{\in} Server ,\, v \.{\in} Value \.{:} ClientRequest ( i ,\, v )}%
+ \@x{\makebox[0pt][r]{\scriptsize 454\hspace{1em}}\@s{55.78} \.{\lor} \E\, i
+ \.{\in} Server \.{:} AdvanceCommitIndex ( i )}%
+ \@x{\makebox[0pt][r]{\scriptsize 455\hspace{1em}}\@s{55.78} \.{\lor} \E\, i
+ ,\, j \.{\in} Server \.{:} AppendEntries ( i ,\, j )}%
+ \@x{\makebox[0pt][r]{\scriptsize 456\hspace{1em}}\@s{55.78} \.{\lor} \E\, m
+ \.{\in} {\DOMAIN} messages \.{:} Receive ( m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 457\hspace{1em}}\@s{55.78} \.{\lor} \E\, m
+ \.{\in} {\DOMAIN} messages \.{:} DuplicateMessage ( m )}%
+ \@x{\makebox[0pt][r]{\scriptsize 458\hspace{1em}}\@s{55.78} \.{\lor} \E\, m
+ \.{\in} {\DOMAIN} messages \.{:} DropMessage ( m )}%
+\@x{\makebox[0pt][r]{\scriptsize 459\hspace{1em}}\@s{55.78}}%
+\@y{\@s{0}%
+ History variable that tracks every \ensuremath{log} ever:
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 460\hspace{1em}}\@s{43.61} \.{\land} allLogs
+ \.{'} \.{=} allLogs \.{\cup} \{ log [ i ] \.{:} i \.{\in} Server \}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 462\hspace{1em}}}%
+\@y{\@s{0}%
+ The specification must start with the initial state and transition according
+}%
+\@xx{}%
+\@x{\makebox[0pt][r]{\scriptsize 463\hspace{1em}}}%
+\@y{\@s{0}%
+ to \ensuremath{Next}.
+}%
+\@xx{}%
+ \@x{\makebox[0pt][r]{\scriptsize 464\hspace{1em}} Spec \.{\defeq} Init
+ \.{\land} {\Box} [ Next ]_{ vars}}%
+\@pvspace{8.0pt}%
+\@x{\makebox[0pt][r]{\scriptsize 466\hspace{1em}}}\bottombar\@xx{}%

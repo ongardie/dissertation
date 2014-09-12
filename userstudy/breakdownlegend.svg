@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="73.511856"
+   height="107.69609"
+   id="svg21949"
+   version="1.1"
+   inkscape:version="0.48.5 r10040"
+   sodipodi:docname="breakdownlegend.svg">
+  <defs
+     id="defs21951" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="3.959798"
+     inkscape:cx="-25.173796"
+     inkscape:cy="36.718597"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:snap-bbox="true"
+     inkscape:snap-bbox-edge-midpoints="true"
+     inkscape:window-width="1598"
+     inkscape:window-height="862"
+     inkscape:window-x="0"
+     inkscape:window-y="15"
+     inkscape:window-maximized="0"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0" />
+  <metadata
+     id="metadata21954">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-295.11615,-287.87607)">
+    <use
+       transform="scale(1.25,1.25)"
+       height="288"
+       width="432"
+       style="fill:#000000;fill-opacity:1"
+       id="use21929"
+       y="132.3584"
+       x="405.28027"
+       xlink:href="#glyph0-18" />
+    <use
+       transform="scale(1.25,1.25)"
+       height="288"
+       width="432"
+       style="fill:#000000;fill-opacity:1"
+       id="use21929-9"
+       y="132.3584"
+       x="405.28027"
+       xlink:href="#glyph0-18" />
+    <use
+       transform="scale(1.25,1.25)"
+       height="288"
+       width="432"
+       style="fill:#000000;fill-opacity:1"
+       id="use21929-8"
+       y="132.3584"
+       x="405.28027"
+       xlink:href="#glyph0-18" />
+    <use
+       transform="scale(1.25,1.25)"
+       height="288"
+       width="432"
+       style="fill:#000000;fill-opacity:1"
+       id="use21929-2"
+       y="132.3584"
+       x="405.28027"
+       xlink:href="#glyph0-18" />
+    <use
+       transform="scale(1.25,1.25)"
+       height="288"
+       width="432"
+       style="fill:#000000;fill-opacity:1"
+       id="use21929-6"
+       y="132.3584"
+       x="405.28027"
+       xlink:href="#glyph0-18" />
+    <text
+       xml:space="preserve"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:FreeSans;-inkscape-font-specification:FreeSans"
+       x="295.30051"
+       y="296.76807"
+       id="text22358"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan22360"
+         x="295.30051"
+         y="296.76807"
+         style="font-weight:600;text-align:start;text-anchor:start;-inkscape-font-specification:FreeSans Semi-Bold">quantile</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:FreeSans;-inkscape-font-specification:FreeSans"
+       x="338.30524"
+       y="323.41833"
+       id="text22358-6"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan22360-2"
+         x="338.30524"
+         y="323.41833">0-25%</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text22383"
+       y="345.0199"
+       x="341.75308"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:FreeSans;-inkscape-font-specification:FreeSans"
+       xml:space="preserve"><tspan
+         y="345.0199"
+         x="341.75308"
+         id="tspan22385"
+         sodipodi:role="line">25-50%</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:FreeSans;-inkscape-font-specification:FreeSans"
+       x="341.74106"
+       y="366.62146"
+       id="text22387"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan22389"
+         x="341.74106"
+         y="366.62146">50-75%</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text22391"
+       y="388.22302"
+       x="344.94891"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:FreeSans;-inkscape-font-specification:FreeSans"
+       xml:space="preserve"><tspan
+         y="388.22302"
+         x="344.94891"
+         id="tspan22393"
+         sodipodi:role="line">75-100%</tspan></text>
+    <path
+       inkscape:connector-curvature="0"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#cccccc;stroke-width:1.32874;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-opacity:1"
+       d="m 295.78052,330.10311 21.60156,0 0,-21.60156 -21.60156,0 z"
+       id="path21883" />
+    <path
+       inkscape:connector-curvature="0"
+       style="fill:#c1f3c1;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       d="m 295.78052,330.10311 21.60156,0 0,-21.60156 -21.60156,0 z"
+       id="path21901" />
+    <path
+       inkscape:connector-curvature="0"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#cccccc;stroke-width:1.32874;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-opacity:1"
+       d="m 295.78052,351.70467 21.60156,0 0,-21.60156 -21.60156,0 z"
+       id="path21903" />
+    <path
+       inkscape:connector-curvature="0"
+       style="fill:#fecece;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       d="m 295.78052,351.70467 21.60156,0 0,-21.60156 -21.60156,0 z"
+       id="path21921" />
+    <path
+       id="path22491"
+       d="m 295.78052,373.30623 21.60156,0 0,-21.60156 -21.60156,0 z"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#cccccc;stroke-width:1.32874;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-opacity:1"
+       inkscape:connector-curvature="0" />
+    <path
+       id="path22493"
+       d="m 295.78052,373.30623 21.60156,0 0,-21.60156 -21.60156,0 z"
+       style="fill:#b5def5;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       inkscape:connector-curvature="0" />
+    <path
+       id="path22495"
+       d="m 295.78052,394.90779 21.60156,0 0,-21.60156 -21.60156,0 z"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#cccccc;stroke-width:1.32874;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;stroke-opacity:1"
+       inkscape:connector-curvature="0" />
+    <path
+       id="path22497"
+       d="m 295.78052,394.90779 21.60156,0 0,-21.60156 -21.60156,0 z"
+       style="fill:#ffffbf;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       inkscape:connector-curvature="0" />
+  </g>
+</svg>

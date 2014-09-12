@@ -1,0 +1,46 @@
+\section{Log compaction}
+\label{related:compaction}
+
+Log compaction is a necessary component of any consensus-based system,
+but unfortunately, the topic is neglected in many papers. We can think
+of two reasons why this might be the case:
+%
+\begin{enumerate}
+%
+\item Most of the issues of log compaction are equally applicable
+to all consensus algorithms. All algorithms must eventually commit each
+log entry, and committed entries can then be compacted without affecting
+the consensus algorithm much (since consensus has already been reached).
+Thus, from a theoretical point of view, compaction is nearly orthogonal
+to the consensus algorithm and may not logically belong in a paper about a
+consensus algorithm.
+%
+\item Log compaction involves a large number of design choices,
+and some of these may vary by implementation. Different approaches trade
+off complexity, performance, and resource utilization in different ways,
+and implementations may vary significantly in their requirements (for
+example, ranging from very small to very large state machines). Some
+authors attempt to describe algorithms in the most general terms
+possible, and it is difficult to be inclusive of all possible
+implementations when facing such a large design space.
+%
+\end{enumerate}
+
+This dissertation discussed several forms of log compaction. The
+biggest design choice is between incremental approaches (described in
+Section~\ref{compaction:incremental}), and snapshotting, which is
+simpler but less efficient.
+Many consensus-based systems use some form of snapshotting.
+Raft's snapshotting approach is very similar to that of Chubby~\cite{Chandra:2007},
+and a similar snapshotting approach is outlined briefly in Viewstamped
+Replication Revisited~\cite{Liskov:2012}.
+
+ZooKeeper~\cite{Hunt:2010} uses \emph{fuzzy snapshots}: rather than
+taking a consistent snapshot using copy-on-write techniques, a snapshot
+in ZooKeeper can partially reflect later changes, thereby not
+representing the state of the system at a particular point in time. The
+changes that may or may not have already been applied to the snapshot
+are reapplied on server startup, resulting in a consistent state.
+Unfortunately, fuzzy snapshots are covered by a US
+patent~\cite{Reed:2010}, and they are also more difficult to reason
+about than consistent snapshots.

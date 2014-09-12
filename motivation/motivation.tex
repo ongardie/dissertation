@@ -1,0 +1,18 @@
+\chapter{Motivation}
+\label{motivation}
+
+Consensus is a fundamental problem in fault-tolerant systems: how can
+servers reach agreement on shared state, even in the face of failures?
+This problem arises in a wide variety of systems that need to provide
+high levels of availability and cannot compromise on consistency; thus,
+consensus is used in virtually all consistent large-scale storage
+systems. Section~\ref{motivation:problem} describes how consensus is
+typically used to create replicated state machines, a general-purpose
+building block for fault-tolerant systems; Section~\ref{motivation:uses}
+discusses various ways replicated state machines are used in larger
+systems; and Section~\ref{motivation:paxos} discusses the problems with
+the Paxos consensus protocol, which Raft aims to address.
+
+\input{motivation/problem}
+\input{motivation/uses}
+\input{motivation/paxos}

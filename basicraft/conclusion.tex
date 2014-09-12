@@ -1,0 +1,53 @@
+\section{Conclusion}
+\label{basicraft:conclusion}
+
+This chapter addressed all the core problems for a consensus-based
+system. Raft goes beyond reaching consensus on a single value, as in
+single-decree Paxos; it achieves consensus on a growing log of commands,
+which is needed to build a replicated state machine. It also
+includes disseminates information once agreement has been reached, so
+that other servers learn the log entries that have been committed. Raft
+achieves consensus in a practical and efficient way by electing a
+cluster leader to unilaterally make decisions and transmitting only the
+necessary log entries when a new leader comes to power. We have
+implemented the ideas of Raft in LogCabin, a replicated state machine
+(described in Chapter~\ref{performance}).
+
+Raft uses only a small amount of mechanism to address the full consensus
+problem. For example, it uses only two RPCs (RequestVote and
+AppendEntries). Perhaps surprisingly, creating a compact
+algorithm/implementation was not an explicit goal for Raft. Rather, it
+is a result of our design for understandability, where every bit of
+mechanism must be fully motivated and explained. We found that redundant
+or meandering mechanism is hard to motivate, so it naturally gets purged
+in the design process.
+
+Unless we felt confident that a particular problem would affect a large
+fraction of Raft deployments, we did not address it in Raft. As a
+result, parts of Raft may appear na\"ive. For example, servers in Raft
+detect a split vote by waiting for an election timeout; in principle,
+they could often detect and even resolve split votes sooner by counting
+the votes granted to any candidate. We chose not to develop this
+optimization for Raft, since it adds complexity but probably brings no
+practical benefit: split votes are rare in a well-configured deployment.
+Other parts of Raft may appear overly conservative. For example, a
+leader only directly commits an entry from its current term, even though
+in some special cases it could safely commit entries from prior terms.
+Applying a more complex commitment rule would harm understandability and
+would not have a significant effect on performance; commitment is only
+delayed briefly with the current rule. In discussing Raft with others,
+we found that many people cannot help but think of such optimizations
+and propose them, but when the goal is understandability, premature
+optimizations should be left out.
+
+Inevitably, this chapter might have left out some features or
+optimizations that turn out to be useful in practice. As implementers
+gain more experience with Raft, they will learn when and why certain
+additional features may be useful, and they may need to implement these
+for some practical deployments. Throughout the chapter, we sketched a
+few optional extensions that we currently think are unnecessary but that
+may help guide implementers should the need arise. By focusing on
+understandability, we hope to have provided a solid foundation for
+implementers to adjust Raft according to their experiences. Since Raft
+works in our testing environment, we expect these to be straightforward
+extensions rather than fundamental changes.

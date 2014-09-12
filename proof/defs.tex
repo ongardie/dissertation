@@ -1,0 +1,62 @@
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+\newenvironment{sketch}
+    {\begin{proof}[Sketch]}
+    {\phantom{\qedhere}\end{proof}}
+\newenvironment{assertion}
+    {\begin{proof}[Assertion]}
+    {\phantom{\qedhere}\end{proof}}
+
+\newcommand\fn[1]{\textsc{#1}}
+\newcommand\tab{\ \ \ \ }
+
+\newcommand\sland{\ \land\ }
+\newcommand\slor{\ \lor\ }
+
+\newcommand\ctrl[1]{\mbox{\textbf{#1}}}
+\newcommand\cif{\ctrl{if }}
+\newcommand\cthen{\ctrl{ then}}
+\newcommand\celse{\ctrl{else}}
+\newcommand\celif{\ctrl{elif }}
+\newcommand\clet{\ctrl{let }}
+\newcommand\cin{\ctrl{ in}}
+\newcommand\cforall{\ctrl{for all }}
+\newcommand\cdo{\ctrl{ do}}
+
+\newcommand\msg[1]{\textsc{#1}}
+\newcommand\ClientRequest{\msg{ClientRequest}}
+\newcommand\ClientResponse{\msg{ClientResponse}}
+\newcommand\RequestVoteRequest{\msg{RequestVoteRequest}}
+\newcommand\RequestVoteResponse{\msg{RequestVoteResponse}}
+\newcommand\AppendEntriesRequest{\msg{AppendEntriesRequest}}
+\newcommand\AppendEntriesResponse{\msg{AppendEntriesResponse}}
+
+\newcommand\dec[1]{\mathcal{#1}}
+\newcommand\messages{\dec{M}}
+\newcommand\replicas{\dec{R}}
+\newcommand\peers{\replicas - \{i\}}
+\newcommand\ppeers{(\replicas - \{i\})}
+\newcommand\operations{\dec{O}}
+\newcommand\clients{\dec{C}}
+\newcommand\indexes{\dec{I}}
+\newcommand\terms{\dec{T}}
+\newcommand\seqs{\dec{S}}
+\newcommand\values{\dec{V}}
+\newcommand\power{\dec{P}}
+\newcommand\g{\dec{G}}
+\newcommand\booleans{\dec{B}}
+
+\newcommand\st[1]{\textsc{#1}}
+\newcommand\follower{\st{follower}}
+\newcommand\candidate{\st{candidate}}
+\newcommand\leader{\st{leader}}
+
+\newcommand\startfn{\tab\=\+Precondition: \=\+\kill}
+\newcommand\precond{\<Precondition:\>}
+\newcommand\effects{\<Effect:\>}
+
+\newcommand\is{\triangleq}
+\newcommand\be{\is}
+\newcommand\domain{\mbox{DOMAIN }}
+\newcommand\cat{\ \|\ }

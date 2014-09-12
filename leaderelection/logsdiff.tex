@@ -1,0 +1,26 @@
+\section{What happens when logs differ?}
+\label{leaderelection:logsdiff}
+
+Most of this chapter has assumed that servers grant their votes
+on a purely first-come-first-served basis. In reality, Raft restricts
+how servers may grant votes: the RequestVote RPC contains information
+about the candidate's log, and a voter does not grant its vote or reset
+its election timer if the voter's log is more up-to-date than the
+candidate's.
+
+We used AvailSim to investigate what effect, if any, this voting
+restriction has on leader election performance. The simulation was
+configured with the same WAN network as in
+Section~\ref{leaderelection:lan}, but each server was configured with a
+different log. Thus, only three, two, or one of the five servers were eligible to
+become leader, depending on whether zero, one, or two of the servers had failed.
+
+
+
+Figure~\ref{fig:leaderelection:simulation:dist:submission-failures-logsdiff}
+shows the results; performance is very similar to when the servers had
+equal logs. The curves do have slightly different shapes (they have
+sharper corners), but the effect is small. Thus, we do not believe the
+log comparison adversely affects leader election performance.
+
+

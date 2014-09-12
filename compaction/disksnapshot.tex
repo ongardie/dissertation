@@ -1,0 +1,77 @@
+\section{Snapshotting disk-based state machines}
+\label{compaction:disksnapshot}
+
+This section discusses a snapshotting approach for large state machines
+(on the order of tens or hundreds of gigabytes) that use disk as their
+primary location of record. 
+These state machines behave differently in that they always have a copy
+of the state ready on disk in case of a crash.
+Applying each entry from the Raft log mutates
+the on-disk state and effectively arrives at a new snapshot. Thus, once
+an entry is applied, it can be discarded from the Raft log.
+(State machines can also buffer writes in memory in hopes of achieving
+better disk efficiency; once they are written to disk, the corresponding
+entries can be discarded from the Raft log.)
+
+The main problem with disk-based state machines is that
+mutating state on disk can lead to poor performance. Without write
+buffering, it requires one or more random disk writes for every command
+applied, which can limit the system's overall write throughput (and
+write buffering might not help much).
+Section~\ref{compaction:incremental} discusses incremental approaches to
+log compaction which write to disk more efficiently with large,
+sequential writes.
+
+Disk-based state machines must be able to provide a consistent
+snapshot of the disk for the purpose of transmitting it to slow
+followers. Although they always have a snapshot on disk, they are
+continuously modifying it. Thus, they still require copy-on-write
+techniques to retain a consistent snapshot for a long enough period to
+transmit it. Fortunately, disk formats are almost always divided into
+logical blocks, so implementing copy-on-write in the state machine
+should be straightforward. Disk-based state machines can also rely on
+operating system support for their snapshots. For example, LVM (logical
+volume management) on Linux can be used to create snapshots of entire
+disk partitions~\cite{lvm}, and some recent file systems allow
+snapshotting individual directories~\cite{btrfssnapshots}.
+
+Copying a snapshot of a disk image can take a long time, and as
+modifications to the disk accumulate, so does the extra disk usage
+required to retain the snapshot.
+Although we haven't implemented disk-based snapshotting,
+we speculate that disk-based state
+machines could avoid most of this overhead by transmitting their disk
+contents with the following algorithm:
+%
+\begin{enumerate}
+%
+\item For each disk block, track the time it was last modified.
+%
+\item While continuing normal operation, transmit the entire disk
+contents to a follower block by block. During this process, no extra
+disk space is used on the leader. Since blocks are being modified
+concurrently, this is likely to result in an inconsistent disk image on
+the follower. As each block is transferred from the leader, note its
+last modification time.
+%
+\item Take a copy-on-write snapshot of the disk contents. Once this is
+taken, the leader has a consistent copy of its disk contents, but
+additional disk space is used as modifications to the disk occur due to
+continued client operations.
+%
+\item Retransmit only the disk blocks that were modified between when
+they were first transmitted in Step~2 and when the snapshot was taken in
+Step~3.
+%
+\end{enumerate}
+%
+Hopefully, most of the blocks of the consistent snapshot will have
+already been transmitted by the time it is created in Step~3. If that is
+the case, the transfer in Step~4 will proceed quickly: the additional
+disk capacity used to retain the snapshot on the leader during Step~4
+will be low, and the additional network bandwidth used during Step~4 to
+retransmit modified blocks will also be low.
+
+
+
+

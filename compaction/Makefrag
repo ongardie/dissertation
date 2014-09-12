@@ -1,0 +1,10 @@
+FIGGENPDF := $(FIGGENPDF) \
+  compaction/cleaningdirect.pdf \
+  compaction/cleaningtwologs.pdf
+
+
+compaction/cleaningdirect.pdf: compaction/cleaning.svg
+	inkscape -T -z -i direct -A $@ $<
+compaction/cleaningtwologs.pdf: compaction/cleaning.svg
+	inkscape -T -z -i twologs -A $@ $<
+

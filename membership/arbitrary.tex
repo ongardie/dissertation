@@ -1,0 +1,103 @@
+\section{Arbitrary configuration changes using joint consensus}
+\label{membership:arbitrary}
+
+This section presents a more complex approach to cluster membership
+changes that handles arbitrary changes to the configuration at one time.
+For example, two servers can be added to a cluster at once, or all of
+the servers in a five-server cluster can be replaced at once. This was
+the first approach to membership changes that we came up with, and it is
+described only for completeness. Now that we know about the simpler
+single-server approach, we recommend that one instead, since handling
+arbitrary changes requires extra complexity. Arbitrary changes are
+typically the way membership changes are assumed to operate in the
+literature, but we don't think this flexibility is needed in real
+systems, where a series of single-server changes can change the cluster
+membership to any desired configuration. 
+
+
+To ensure safety across arbitrary configuration changes,
+the cluster first switches to a transitional
+configuration we call \emph{joint consensus}; once the joint consensus
+has been committed, the system then transitions to the new
+configuration. The joint consensus
+combines both the old and new configurations:
+\begin{itemize}
+\item Log entries are replicated to all servers in both configurations.
+\item Any server from either configuration may serve as leader.
+\item Agreement (for elections and entry commitment) requires
+separate majorities from \emph{both} the old and new configurations.
+For example, when changing from a cluster of 3 servers to a
+different cluster of 9 servers, agreement requires both 2 of
+the 3 servers in the old configuration and 5 of the 9 servers in the new
+configuration.
+\end{itemize}
+The joint consensus allows individual
+servers to transition between configurations at different times
+without compromising safety. Furthermore, joint
+consensus allows the cluster to continue servicing client requests
+throughout the configuration change.
+
+\begin{figure}
+\centering
+\includegraphics[scale=.50]{membership/reconfigurationconf}
+\vcaption[joint consensus timeline]{
+Timeline for a configuration change using joint consensus. Dashed lines show configuration
+entries that have been created but not committed, and solid lines
+show the latest committed configuration entry. The leader first creates
+the \cboth{} configuration entry in its log and commits it to \cboth{}
+(a majority of \cold{} and a majority of \cnew{}).
+Then it creates the \cnew{} entry and commits it to a majority of
+\cnew{}. There is no point in time in which \cold{} and \cnew{} can
+ both make decisions independently.
+}
+\label{fig:membership:reconfiguration}
+\end{figure}
+
+This approach extends the single-server membership change algorithm with an
+intermediate log entry for the joint configuration;
+Figure~\ref{fig:membership:reconfiguration} illustrates the
+process. When the leader receives a request to
+change the configuration from \cold{} to \cnew{}, it stores the
+configuration for joint consensus (\cboth{} in the figure) as a log
+entry and replicates that entry using the normal Raft mechanism. As with
+the single-server configuration change algorithm, each server starts
+using a new configuration as soon as it stores the configuration in its
+log. This means that
+the leader will use the rules of \cboth{} to determine when the log
+entry for \cboth{} is committed. If the leader crashes, a new
+leader may be chosen under either \cold{} or \cboth{}, depending
+on whether the winning candidate has received \cboth{}.  In any
+case, \cnew{} cannot make unilateral decisions during this period.
+
+Once \cboth{} has been committed, neither \cold{} nor \cnew{}
+can make decisions without approval of the other, and
+the Leader Completeness Property ensures that only servers with the
+\cboth{} log entry can be elected as leader.
+It is now safe for the
+leader to create a log entry describing \cnew{} and replicate it
+to the cluster. Again, this configuration will take effect on
+each server as soon as it is seen. When the \cnew{} log entry
+has been committed under the rules of \cnew{}, the old configuration
+is irrelevant and servers not in the
+new configuration can be shut down. As shown in
+Figure~\ref{fig:membership:reconfiguration},
+there is no time when \cold{} and \cnew{} can both make
+unilateral decisions; this guarantees safety.
+
+
+The joint consensus approach could be generalized to allow a
+configuration change to begin while a prior change was still in
+progress. However, there would not be much practical advantage to doing
+this. Instead, a leader rejects additional configuration changes when a
+configuration change is already in progress (when its latest
+configuration is not committed or is not a simple majority). Changes
+that are rejected in this way can simply wait and try again later.
+
+This joint consensus approach is more complex than the single-server
+changes precisely because it requires transitioning to and from an
+intermediate configuration. Joint configurations also require changes to
+how all voting and commitment decisions are made; instead of simply
+counting servers, the leader must check if the servers form a majority
+of the old cluster and also form a majority of the new cluster.
+Implementing this required finding and changing about six comparisons in
+our Raft implementation~\cite{logcabin}.

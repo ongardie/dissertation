@@ -1,0 +1,8 @@
+FIGGENPDF := $(FIGGENPDF) \
+  related/rsm.pdf \
+  related/primarybackup.pdf
+
+related/rsm.pdf: related/primarybackup-rsm.svg
+	inkscape -T -z -i rsm -A $@ $<
+related/primarybackup.pdf: related/primarybackup-rsm.svg
+	inkscape -T -z -i primarybackup -A $@ $<

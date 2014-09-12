@@ -1,0 +1,190 @@
+\chapter{Introduction}
+\label{introduction}
+
+
+Today's datacenter systems and applications run in highly dynamic
+environments. They scale out by leveraging the resources of additional
+servers, and they grow and shrink according to demand. Server and
+network failures are also commonplace:
+about 2--4\% of disk drives fail each year~\cite{Schroeder:2007},
+servers crash about as often~\cite{Dean:2009}, and tens of network links
+fail every day in modern datacenters~\cite{Gill:2011}.
+
+As a result, systems must deal with servers coming and going during
+normal operations. They must react to changes and adapt automatically within
+seconds; outages that are noticeable to humans are typically not acceptable.
+This is a major challenge in today's systems; failure handling,
+coordination, service discovery, and configuration management are all
+difficult in such dynamic environments.
+
+Fortunately, distributed consensus can help with these challenges.
+Consensus allows a collection of machines to work as a coherent group
+that can survive the failures of some of its members. Within a consensus
+group, failures are handled in a principled and proven way. Because
+consensus groups are highly available and reliable, other system
+components can use a consensus group as the foundation for their own
+fault tolerance. Thus, consensus plays a key role in building reliable
+large-scale software systems.
+
+When we started this work, the need for consensus was becoming clear,
+but many systems still struggled with problems that consensus could
+solve. Some large-scale systems were still limited by a single
+coordination server as a single point of failure (e.g.,
+HDFS~\cite{Hadoop2Release,HDFSHA}). Many others included ad hoc
+replication algorithms that handled failures unsafely (e.g., MongoDB and
+Redis~\cite{Kingsbury:Jepsen}). New systems had few options for readily
+available consensus implementations (ZooKeeper~\cite{Hunt:2010} was the
+most popular), forcing systems builders to conform to one or build their
+own.
+
+Those choosing to implement consensus themselves usually turned to
+Paxos~\cite{Lamport:1998, Lamport:2001}. Paxos had dominated the
+discussion of consensus algorithms over the last two decades: most
+implementations of consensus were based on Paxos or influenced by it,
+and Paxos had become the primary vehicle used to teach students about
+consensus.
+
+Unfortunately, Paxos is quite difficult to understand, in spite of
+numerous attempts to make it more approachable. Furthermore, its
+architecture requires complex changes to support practical systems,
+and building a complete system based on Paxos requires developing several
+extensions for which the details have not been published or agreed upon. As a
+result, both system builders and students struggle with Paxos.
+
+The two other well-known consensus algorithms are Viewstamped
+Replication~\cite{Oki:1988,Oki:1988t,Liskov:2012} and
+Zab~\cite{Junqueira:2011}, the algorithm used in ZooKeeper. Although we
+believe both of these algorithms are incidentally better in structure
+that Paxos for building systems, neither has explicitly made this
+argument; they were not designed with simplicity or understandability as
+a primary goal. The burden of understanding and implementing these
+algorithms is still too high.
+
+Each of these consensus options was difficult to understand and
+difficult to implement. Unfortunately, when the cost of implementing
+consensus with proven algorithms was too high, systems builders were
+left with a tough decision. They could avoid consensus altogether,
+sacrificing the fault tolerance or consistency of their systems, or they
+could develop their own ad hoc algorithm, often leading to
+unsafe behavior. Moreover, when the cost of explaining and
+understanding consensus was too high, not all instructors attempted to
+teach it, and not all students succeeded in learning it. Consensus is as
+fundamental as two-phase commit; ideally, as many
+students should learn it (even though consensus is fundamentally more
+difficult).
+
+After struggling with Paxos ourselves, we set out to find a
+new consensus algorithm that could provide a better foundation for
+system building and education. Our approach was unusual in that our
+primary goal was \emph{understandability}: could we define a consensus
+algorithm for practical systems and describe it in a way that is
+significantly easier to learn than Paxos? Furthermore, we wanted the
+algorithm to facilitate the development of intuitions that are essential
+for system builders. It was important not just for the algorithm to
+work, but for it to be obvious why it works.
+
+This algorithm also had to be complete enough to address all aspects of
+building a practical system, and it had to perform well enough for
+practical deployments. The core algorithm not only had to specify the
+effects of receiving a message but also describe what \emph{should}
+happen and when; these are equally important for systems builders.
+Similarly, it had to guarantee consistency, and it also had to provide
+availability whenever possible. It also had to address the many aspects
+of a system that go beyond reaching consensus, such as changing the
+members of the consensus group. These are necessary in practice, and
+leaving this burden to systems builders would risk ad hoc, suboptimal,
+or even incorrect solutions.
+
+The result of this work is a consensus algorithm called Raft. In
+designing Raft we applied specific techniques to improve
+understandability, including decomposition (Raft separates leader
+election, log replication, and safety) and state space reduction (Raft
+reduces the degree of nondeterminism and the ways servers can be
+inconsistent with each other). We also addressed all of the issues needed to
+build a complete consensus-based system. We considered each design
+choice carefully, not just for the benefit of our own implementation but
+also for the many others we hope to enable.
+
+We believe that Raft is superior to Paxos and other consensus
+algorithms, both for educational purposes and as a foundation for
+implementation. It is simpler and more understandable than other
+algorithms; it is described completely enough to meet the needs of a
+practical system; it has several open-source implementations and is used
+by several companies; its safety properties have been formally specified
+and proven; and its efficiency is comparable to other algorithms.
+
+The primary contributions of this dissertation are as follows:
+%
+\begin{itemize}
+%
+\item The design, implementation, and evaluation of the Raft consensus
+algorithm. Raft is similar in many ways to existing consensus algorithms
+(most notably, Oki and Liskov's Viewstamped Replication~\cite{Oki:1988,
+Liskov:2012}), but it is designed for understandability. This led to
+several novel features. For example, Raft uses a stronger form of
+leadership than other consensus algorithms.
+This simplifies the management of the replicated log and makes Raft
+easier to understand.
+%
+\item The evaluation of Raft's understandability. A user study with 43
+students at two universities shows that Raft is significantly easier to
+understand than Paxos: after learning both algorithms, 33 of these
+students were able to answer questions about Raft better than questions
+about Paxos. We believe this is the first scientific study to evaluate
+consensus algorithms based on teaching and learning.
+%
+\item The design, implementation, and evaluation of Raft's leader
+election mechanism.  While many consensus algorithms do not prescribe a
+particular leader election algorithm, Raft includes a specific algorithm
+involving randomized timers. This adds only a small amount of mechanism
+to the heartbeats already required for any consensus algorithm, while
+resolving conflicts simply and rapidly. The evaluation of leader
+election investigates its behavior and performance, concluding that this simple
+approach is sufficient in a wide variety of practical environments. It
+typically elects a leader in under 20 times the cluster's one-way
+network latency.
+%
+\item The design and implementation of Raft's cluster membership change
+mechanism. Raft allows adding or removing a single server at a time;
+these operations preserve safety simply, since at least one server
+overlaps any majority during the change. More complex changes in
+membership are implemented as a series of single-server changes.
+Raft allows the
+cluster to continue operating normally during changes, and membership
+changes can be implemented with only a few extensions to the basic
+consensus algorithm.
+%
+\item A thorough discussion and implementation of the other components
+necessary for a complete consensus-based system, including client
+interaction and log compaction. Although we do not believe these aspects
+of Raft to be particularly novel, a complete description is important
+for understandability and to enable others to build real systems. We have
+implemented a complete consensus-based service to explore and address
+all of the design decisions involved.
+%
+\item A proof of safety and formal specification for the Raft algorithm.
+The level of precision in the formal specification aids in reasoning
+carefully about the algorithm and clarifying details in the algorithm's
+informal description. The proof of safety helps build confidence in
+Raft's correctness. It also aids others who wish to extend Raft by
+clarifying the implications for safety of their extensions.
+%
+\end{itemize}
+
+We have implemented many of the designs in this dissertation in
+an open-source implementation of Raft called LogCabin~\cite{logcabin}.
+LogCabin served as our test platform for new ideas in Raft
+and as a way to verify that we understood the issues of building a
+complete and practical system. The implementation is described in more
+detail in Chapter~\ref{performance}.
+
+The remainder of this dissertation introduces the replicated state
+machine problem and discusses the strengths and weaknesses of Paxos
+(Chapter~\ref{motivation}); presents the Raft consensus algorithm, 
+its extensions for cluster membership changes and log compaction, and
+how clients interact with Raft
+(Chapters~\ref{basicraft}--\ref{clients});
+evaluates Raft for understandability, correctness, and leader election
+and log replication performance
+(Chapters~\ref{userstudy}--\ref{performance}); and discusses related
+work (Chapter~\ref{related}).

@@ -1,0 +1,119 @@
+\chapter{Cluster membership changes}
+\label{membership}
+
+Up until now we have assumed that the cluster \emph{configuration}
+(the set of servers participating in the consensus algorithm) is fixed.
+In practice, it will occasionally be necessary to change the
+configuration, for example to replace servers when they fail or to
+change the degree of replication. This could be done
+manually, using one of two approaches:
+\begin{itemize}
+\item Configuration changes could be done by taking the entire cluster
+off-line, updating configuration files, and then restarting the cluster.
+However, this would leave the cluster unavailable during the changeover.
+\item Alternatively, a new server could replace a cluster member by
+acquiring its network address. However, the administrator must guarantee
+that the replaced server will never come back up, or else the system
+would lose its safety properties (for example, there would be an extra
+vote).
+\end{itemize}
+Both of these approaches to membership changes have significant downsides,
+and if there are any manual steps, they risk operator error.
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.95]{membership/cheatsheet2}
+\vcaption[RPCs to change cluster membership]{
+RPCs used to change cluster membership. The
+AddServer RPC is used to add a new server to the current configuration,
+and the RemoveServer RPC is used to remove a server from the current
+configuration.
+Section numbers such as \S\ref{membership:safety} indicate where
+particular features are discussed.
+Section~\ref{membership:system} discusses ways to use
+these RPCs in a complete system.
+}
+\label{fig:membership:cheatsheet2}
+\end{figure}
+
+
+In order to avoid these issues, we decided to automate configuration
+changes and incorporate them into the \name{} consensus algorithm. Raft
+allows the cluster to continue operating normally during changes, and
+membership changes can be implemented with only a few extensions to the
+basic consensus algorithm. Figure~\ref{fig:membership:cheatsheet2}
+summarizes the RPCs used to change cluster membership, whose elements
+are described in the remainder of this chapter.
+
+
+\input{membership/safety}
+\input{membership/availability}
+\input{membership/arbitrary}
+
+\section{System integration}
+\label{membership:system}
+
+Raft implementations may expose the cluster membership change mechanism
+described in this chapter in different ways. For example, the AddServer
+and RemoveServer RPCs in Figure~\ref{fig:membership:cheatsheet2} can be
+invoked by administrators directly, or they can be invoked by a script
+that uses a series of single-server steps to change the configuration in
+arbitrary ways.
+
+It may be desirable to invoke membership changes automatically in
+response to events like server failures. However, this should only be
+done according to a reasonable policy. For example, it can be dangerous
+for the cluster to automatically remove failed servers, as it could then
+be left with too few replicas to satisfy the intended durability and
+fault-tolerance requirements. One reasonable approach is to have the
+system administrator configure a desired cluster size, and within that
+constraint, available servers could automatically replace failed
+servers.
+
+When making cluster membership changes that require multiple
+single-server steps, it is preferable to add servers before removing
+servers. For example, to replace a server in a three-server cluster,
+adding one server and then removing the other allows the system to
+handle one server failure at all times throughout the process. However,
+if one server was first removed before the other was added, the system
+would temporarily not be able to mask any failures (since two-server
+clusters require both servers to be available).
+
+Membership changes motivate a different approach to bootstrapping a
+cluster. Without dynamic membership, each server simply has a static
+file listing the configuration. With dynamic membership changes, the
+static configuration file is no longer needed, since the system manages
+configurations in the Raft log; it is also potentially error-prone
+(e.g., with which configuration should a new server be initialized?).
+Instead, we recommend that the very first time a cluster is created, one
+server is initialized with a configuration entry as the first entry in
+its log. This configuration lists only that one server; it alone forms a
+majority of its configuration, so it can consider this configuration
+committed. Other servers from then on should be initialized with empty
+logs; they are added to the cluster and learn of the current
+configuration through the membership change mechanism.
+
+Membership changes also necessitate a dynamic approach for clients to
+find the cluster; this is discussed in Chapter~\ref{clients}.
+
+\section{Conclusion}
+
+This chapter described an extension to Raft for handling cluster
+membership changes automatically. This is an important part of a
+complete consensus-based system, since fault-tolerance requirements
+can change over time, and failed servers eventually need to be replaced.
+
+The consensus algorithm must fundamentally be involved in preserving
+safety across configuration changes, since a new configuration affects
+the meaning of ``majority''. This chapter presented a simple approach
+that adds or removes a single server at a time. These operations preserve
+safety simply, since at least one server overlaps any majority during
+the change. Multiple single-server changes may be composed to modify the
+cluster more drastically. Raft allows the cluster to continue operating
+normally during membership changes.
+
+Preserving availability during configuration changes requires handling
+several non-trivial issues. In particular, the issue of a server not in
+the new configuration disrupting valid cluster leaders was surprisingly
+subtle; we struggled with several insufficient solutions based on log
+comparisons before settling on a working solution based on heartbeats.

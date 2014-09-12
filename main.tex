@@ -1,0 +1,243 @@
+\documentclass[11pt]{report}
+
+\usepackage{suthesis-2e-mod}
+
+\usepackage{epsfig}
+\usepackage[hyphens]{url}
+\usepackage{paralist}     % provides \compactitem
+\usepackage{times}        % use times font
+\usepackage{comment}      % provide \begin{comment}...\end{comment}
+\usepackage{xcolor}       % commands for changing colors
+\usepackage{lastpage}     % for total number of pages
+\usepackage[normalem]{ulem} % for \sout{to strike out text}
+\usepackage{stfloats}     % something to do with placement of
+                          % two-column tables
+\usepackage{etoolbox}     % for conditional toggles
+\usepackage[pdfauthor={Diego Ongaro},
+            pdftitle={Consensus: Bridging Theory and Practice},
+            pdfsubject={Stanford University Ph.D. Dissertation},
+            pagebackref,colorlinks=true,
+            linkcolor=blue!50!black!90,
+            citecolor=blue!50!black!90,
+            urlcolor=blue!50!black!90,
+            bookmarks]{hyperref}     % for clickable links in PDF
+\usepackage{multicol}
+\usepackage{tabularx}     % for easier tables with wrapped text
+\usepackage{tabulary}     % for easier tables with wrapped text
+\usepackage{relsize}      % for \mathlarger
+\usepackage{amssymb}
+\usepackage{amsmath}      % Needed to enable unnumbered equations (\begin{equation*})
+
+\usepackage{placeins}     % provides \FloatBarrier
+\usepackage{siunitx}      % typesetting units after numbers
+\sisetup{range-phrase=--,
+         range-units=single,
+         binary-units,
+         input-decimal-markers=.,
+         group-separator={,},
+         group-minimum-digits=4}
+\usepackage{mathptmx}     % use times in math mode
+\frenchspacing
+
+\usepackage{caption}
+
+% for subfigure environment, where refs look like Figure 9.8(c)
+\usepackage[labelformat=simple]{subcaption}
+\renewcommand\thesubfigure{(\alph{subfigure})}
+
+\newcommand\mazieres{Mazi\`{e}res}
+
+\title{Consensus: Bridging Theory and Practice}
+\author{Diego Ongaro}
+\principaladviser{John Ousterhout}
+\firstreader{Mendel Rosenblum}
+\secondreader{David \mazieres}
+\submitdate{August 2014}
+
+\def\thesiscopyrightpage{%
+\urlstyle{same}
+\null\vfill
+\begin{center}
+\large \copyright\ 2014 Diego Ongaro
+\vspace{.75in}\\
+\parbox{1.5in}{
+\includegraphics[scale=1]{cc-by}
+}
+\parbox{3.5in}{
+This work is licensed under the Creative Commons \\
+Attribution 4.0 International License.\\
+\url{http://creativecommons.org/licenses/by/4.0/}
+}
+
+\vspace{.75in}
+\parbox{5.5in}{
+This dissertation expands on a paper written by Diego Ongaro and John
+Ousterhout entitled \emph{In Search of an Understandable Consensus
+Algorithm}~\cite{raftatc}. Most of the paper's content is included in
+some form in this dissertation. It is reproduced in this dissertation
+and licensed under the Creative Commons Attribution license with
+permission from John Ousterhout.
+}
+
+\vspace{1in}
+This dissertation is distributed by Stanford University online:
+\url{http://purl.stanford.edu/qr033xr6097}\\
+The \LaTeX{} source files used to create this document are
+available online:
+\url{https://github.com/ongardie/dissertation/}
+
+\end{center}
+\vfill\newpage\urlstyle{tt}}
+
+\long\def\signature#1{%
+\begin{flushright}
+\begin{minipage}{5in}
+\parindent=0pt
+I certify that I have read this dissertation and that, in my opinion,
+it is fully adequate in scope and quality as a dissertation for the degree
+of Doctor of Philosophy.
+\par
+\vspace{3ex}
+\hbox to 5in{\hfil\begin{tabular}{@{}l@{}}\textbf{#1}\end{tabular}}
+\end{minipage}
+\end{flushright}}
+
+\long\def\ucgssignature#1{%
+\begin{flushright}
+\begin{minipage}{5in}
+\parindent=0pt
+Approved for the Stanford University Committee on Graduate Studies.
+\par
+\vspace{3ex}
+\hbox to 5in{\hfil\begin{tabular}{@{}l@{}}\textbf{#1}\end{tabular}}
+\end{minipage}
+\end{flushright}}
+
+\def\signaturepage{%
+\signature{John Ousterhout, Principal Adviser}
+\vspace{.5in}
+\signature{Mendel Rosenblum}
+\vspace{.5in}
+\signature{David \mazieres}
+\vspace{.5in}
+\ucgssignature{Patricia J. Gumport, Vice Provost for Graduate Education}
+\vfill
+\begin{center}
+\emph{This signature page was generated electronically. An original signed
+hard\\ copy of the signature page is on file in Stanford University
+Archives.}
+\end{center}
+}
+
+
+\newcommand\name{Raft}
+
+\newcommand\red[1]{\textcolor{red}{#1}}   % For newly proposed text
+\newcommand\redstrike[1]{\red{\sout{#1}}} % To strike out text
+\newcommand\blue[1]{\textcolor{blue}{XXX- #1}} % For comments
+
+\newcommand{\Ex}{\mathop{\bf E\/}} % expected value
+
+
+\hyphenation{LogCabin} % force no hyphens in 'LogCabin'
+\hyphenation{RAMCloud} % force no hyphens in 'RAMCloud'
+\hyphenation{LevelDB} % force no hyphens in 'LevelDB'
+\hyphenation{Append-Entries} % break 'AppendEntries' between words
+\hyphenation{Request-Vote} % break 'RequestVote' between words
+
+% Adjust caption display: bold figure name, slight margins
+\usepackage{caption}
+\captionsetup{labelfont=bf, margin=10pt}
+
+% Spacing between footnotes and text.
+\setlength{\skip\footins}{6ex}
+
+% Footnotes with no number.
+\makeatletter
+\def\blfootnoteindented{\xdef\@thefnmark{}\@footnotetext}
+\newcommand\blfootnote[1]{\blfootnoteindented{\hspace{-2.1em} #1}}
+\makeatother
+
+% read environment variables
+\usepackage{catchfile}
+\newcommand{\getenv}[2][]{%
+  \CatchFileEdef{\temp}{"|kpsewhich --var-value #2"}{}%
+  \if\relax\detokenize{#1}\relax\temp\else\let#1\temp\fi}
+
+% Trim margins if TRIM environment variable is set to "yes".
+\getenv[\TRIM]{TRIM}
+\edef\trimdef{{\TRIM}}
+\expandafter\ifstrequal\trimdef{yes }{
+\usepackage[paperwidth=6.6in, paperheight=9.35in, top=.75in, bottom=.5in, left=.3in, right=.3in]{geometry}
+}{
+}
+
+% for proof
+\usepackage{color}
+\definecolor{boxshade}{gray}{0.85}
+\usepackage{proof/tlatex}
+\usepackage{amsthm}
+\theoremstyle{definition}
+\input{proof/defs.tex}
+
+
+% drop capitalization on List of Tables, List of Figures
+\renewcommand{\listfigurename}{List of figures}
+\renewcommand{\listtablename}{List of tables}
+
+
+\begin{document}
+
+\beforepreface
+
+\include{abstract/abstract}
+
+\prefacesection{Preface}
+
+Readers may want to refer to the Raft website~\cite{implementations} for
+videos about Raft and an interactive visualization of Raft.
+
+\include{ack/ack}
+\afterpreface
+
+% Do this \afterpreface to avoid breaking tex.
+% Stash chapter names in \Chaptername
+\let\Chaptermark\chaptermark
+\renewcommand\chaptermark[1]{
+\def\Chaptername{#1}\Chaptermark{#1}
+}
+
+\newcommand{\vcaption}[2][Figure]{
+  \caption[\Chaptername: #1]{#2}
+}
+
+
+\newcommand\cold{$C_\text{old}$}
+\newcommand\cnew{$C_\text{new}$}
+\newcommand\cboth{$C_\text{old,new}$}
+
+
+\include{intro/intro}
+\include{motivation/motivation}
+\include{basicraft/raft}
+\include{membership/membership}
+\include{compaction/compaction}
+\include{clients/clients}
+\include{userstudy/userstudy}
+\include{correctness/correctness}
+\include{leaderelection/leaderelection}
+\include{performance/performance}
+\include{related/related}
+\include{conclusion/conclusion}
+
+\appendix
+
+\include{userstudymaterials/userstudyquizzes}
+\include{proof/proof}
+
+\label{end}
+
+\bibliographystyle{acmcaps}
+\bibliography{local}
+
+\end{document}

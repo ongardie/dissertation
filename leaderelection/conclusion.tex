@@ -1,0 +1,39 @@
+\section{Conclusion}
+\label{leaderelection:conclusion}
+
+Raft's leader election algorithm performs well in a wide variety of
+scenarios. It is able to elect leaders within tens of milliseconds on
+average on a real-world LAN. When election timeouts are chosen randomly
+from a range of 10--20 times the one-way network latency, leaders are
+elected within about 20 times the one-way network latency on average.
+Tail election times are also fairly short. For example, 99.9\% of
+elections complete in less than \SI{3}{seconds} when the one-way network
+latency is as high as \SIrange{30}{40}{\milli\second}.
+
+This chapter answered most of the basic questions about how Raft's
+leader election algorithm performs. Further analysis is required to
+answer the following additional questions:
+%
+\begin{compactitem}
+%
+\item How much longer does leader election take when servers start with
+different initial current term numbers?
+%
+\item How does leader election perform in asymmetric networks, where
+each link has a different latency?
+%
+\item How well does leader election work on networks with severe packet
+loss?
+%
+\item How well does leader election work when servers experience
+severe clock drift?
+%
+\end{compactitem}
+
+Another interesting area of research would be to explore setting
+election timeouts dynamically. Raft's leader election performance
+depends on a properly configured election timeout, and it would be nice
+to configure this election timeout automatically and dynamically.
+However, we do not know how leader election will perform if different
+servers use different election timeout ranges (this is related to the
+clock drift question above).

@@ -1,0 +1,326 @@
+\section{Performance}
+\label{related:performance}
+
+
+Many papers have proposed performance enhancements to Paxos and other
+consensus algorithms. Although these performance enhancements can be
+useful, implementers will have to judge which, if any, are
+appropriate in their situations. Prior to describing the enhancements in
+related work, we discuss several considerations that may be significant
+in these decisions.
+
+First, others before us have recognized that performance of consensus is
+sometimes secondary to understandability or ease of implementation. For
+example, Boxwood~\cite{MacCormick:2004} uses an implementation of Paxos
+that only processes one log entry at time (in sequence with no batching
+or pipelining). The authors note:
+%
+\begin{quote}
+%
+This makes the implementation slightly easier without sacrificing the
+effectiveness of the protocol for our purposes.
+%
+\end{quote}
+%
+It would be unwise to use a more complex algorithm or implementation for
+performance reasons if no application will ultimately reap the benefits.
+
+Second, the performance of a single consensus group is fundamentally
+limited, since each operation must involve more than half of the servers
+in the cluster. The best case throughput for a consensus group cannot
+exceed twice that of a single server, since each server needs to process
+a majority of commands. The only way to scale consensus to large
+clusters is to use more independent consensus groups (see
+Chapter~\ref{motivation}) and to minimize synchronization across
+groups.
+
+Possible latency improvements are also limited, especially for
+datacenter networks. The best case for latency is replicating directly
+from the client to the majority of the cluster nearest the client,
+whereas in leader-based algorithms, the client replicates to the leader,
+then the leader replicates to the nearest half of the other servers in
+the cluster. The possible improvement thus depends on the geographical
+layout of the client and servers; the worst case latency can improve
+from circling the globe twice per request to circling it just once.
+
+Third, several important performance gains can be achieved without
+fundamentally changing the algorithm:
+%
+\begin{itemize}
+%
+\item Most practical implementations of consensus employ some form of
+pipelining and/or batching of log entries. Chapter~\ref{performance}
+discussed batching and pipelining in Raft, and Santos and
+Schiper~\cite{Santos:2012} analyzed trading off batching and pipelining
+in the context of Paxos. Unfortunately, they suggest optimizing for
+throughput at the expense of latency, and their model does not include
+writes to stable storage.
+%
+\item The leader's outbound network usage, which is typically the limiting
+factor in throughput for leader-based algorithms, can also be reduced
+without fundamentally changing the algorithm. For example, the leader
+can use chain replication~\cite{Ghemawat:2003,Renesse:2004}
+(in which the leader replicates to the first follower, which in turn
+replicates to the second, etc.) or network multicast to
+replicate entries to its followers; all followers receive copies
+of the log entries, but the leader only has to transmit each log entry
+once. Alternatively, the followers can replicate batches of commands
+into each other's memory, and the leader can then order these batches
+into the replicated log without transmitting the full command data;
+S-Paxos~\cite{Biely:2012} fleshed out the details for Paxos.
+%
+\end{itemize}
+
+Finally, many of the performance optimizations in this section have
+unfortunately been patented in the US. We have tried to warn readers of
+patents that we are aware of, and we sincerely hope that software
+patents will be reformed or abolished in the US soon (the Electronic
+Frontier Foundation describes why~\cite{eff}).
+
+
+
+\subsection{Reducing leader bottleneck}
+
+Many optimizations focus on reducing the leader as a performance
+bottleneck. As a single server, the leader has limited resources
+and may be located inconveniently in wide-area deployments. Thus,
+optimizations have the potential to:
+%
+\begin{compactitem}
+%
+\item Increase throughput by using network links in a more balanced way;
+%
+\item Decrease latency by avoiding the (possibly long) network hop
+to involve the leader; and
+%
+\item More evenly balance load between the servers.
+%
+\end{compactitem}
+
+Unfortunately, most of these optimizations are in conflict with Raft's
+strong leader approach. Raft leverages its strong leader for
+understandability and reducing mechanism, and this key design choice is
+at odds with reducing the leader's involvement in normal operations.
+Thus, if Raft were modified to support these optimizations, the
+end result would differ considerably from the Raft algorithm, and it
+would probably be significantly harder to understand.
+
+\subsubsection{Rotating leader (Mencius)}
+
+
+In a US patent~\cite{Lamport:2007}, Lamport \emph{et al.} describe an
+idea to divide a replicated log such that different servers act as
+leader for different log indexes. For example, leadership can be
+assigned round-robin to all the servers in the cluster.
+Mencius~\cite{Mao:2008} applies this idea to Paxos and works out many of
+the details needed for a practical implementation. For example, servers in
+Mencius can efficiently skip their turns if they have no client requests
+to propose.
+
+Mencius can improve the cluster's throughput since all servers can
+propose requests. It can also improve latency when servers are separated
+by wide-area links, as clients can submit their requests to a nearby
+server. However, its design also has two potential downsides for
+performance:
+%
+\begin{enumerate}
+%
+\item A slow server can delay state machines from applying further log
+entries, since it needs to propose a value or skip its turn (or worse,
+another server must revoke its turn) in order to make progress. This
+impacts latency but not throughput.
+%
+\item Similarly, any failed server can result in reduced performance
+until the cluster revokes its assigned log entries. In
+contrast, a non-leader failure in Multi-Paxos does not usually affect
+performance.
+%
+\end{enumerate}
+
+We think Raft could be extended to support Mencius-like operation.
+However, it would add so much complexity to Raft that the end result
+might hardly resemble Raft at all.
+
+
+\subsubsection{Offloading leadership burden to clients (Fast Paxos)}
+
+Fast Paxos~\cite{Lamport:2006} (covered by a US
+patent~\cite{Lamport:2009})
+describes an approach to reducing the
+leader bottleneck in which clients propose commands directly to the
+cluster servers, rather than submitting them to the leader to propose.
+This is advantageous for latency when the client is located far from the
+leader and the leader is far from the other servers. It also eliminates
+a network hop, which can improve latency even if all the servers are
+located in a single datacenter.
+
+To allow clients to propose requests directly, a leader first executes
+the first phase of Paxos on the cluster, resolves any proposed but
+uncommitted log entries, and tells clients of its proposal number. 
+Then, using the leader's proposal number, a client
+can directly propose a command to all servers in the cluster. The
+client does not specify a log index with its command; instead, each
+server assigns the command to its first unused log entry. If a single
+client proposes a command at a particular time, the servers will
+typically agree on the log index for the command. If the client gets
+a \emph{fast quorum} of the servers to accept the command for the same log
+index, it is committed; a fast quorum typically requires
+$\lceil 3N/4 \rceil$ servers.
+
+Practically speaking, a client often needs to learn the state machine's
+output as a result of its command execution; it is not always enough to
+know that the command is committed. This requires not the client but
+some server to learn that the command was committed.
+Servers can send each other their accept responses, along with the
+command that they accepted, to determine whether commitment indeed
+occurred. Once a server learns that a command was committed, it can
+apply the command (in log order), and return the result of its state
+machine to the client.
+
+If two clients propose distinct values simultaneously, the
+command may not commit using a fast quorum. Recovering from this
+situation can either be coordinated by the leader or uncoordinated. In
+coordinated recovery, the leader selects one of the accepted values and
+initiates the second phase of Paxos using a slow quorum, which typically
+requires $\lfloor N/2 \rfloor + 1$ servers. In uncoordinated recovery,
+the servers independently try to choose the same value, and they try
+again using a fast quorum.
+
+Fast Paxos can help reduce latency under low load, but if clients
+frequently conflict, any performance improvements may be negated by the
+cost of recovery. Moreover, Fast Paxos is fairly complex in its
+messaging pattern and use of two types of quorums, and it may not be
+desirable to move so much processing to the client. It might be possible
+to make Raft work similarly to Fast Paxos; again, however, the
+end result would probably not resemble Raft very much.
+
+\subsubsection{Exploiting commutativity (Generalized and Egalitarian Paxos)}
+
+Generalized Paxos~\cite{Lamport:2005} and Egalitarian
+Paxos~\cite{Moraru:2013} both exploit commutativity
+(non-interference) in state
+machine commands. The intuition is that, if commands A and B commute,
+then one state machine can apply A then B, and another can apply B then
+A, and they will still arrive at the same resulting states.
+To support this, state machines must identify
+which operations commute, and the consensus algorithm uses this
+information to determine when conflicts occur.
+When conflicts do not occur, the processing is quite efficient, but if
+commands that are proposed concurrently do not commute with each other,
+the algorithms require an additional round of communication.
+
+Generalized Paxos~\cite{Lamport:2005} (covered by a US
+patent~\cite{Lamport:2007}) extends Fast Paxos to avoid recovery when
+operations commute. It is able to achieve the fast path performance of
+Fast Paxos even when multiple clients are proposing commands, as long as
+those commands do not interfere.
+
+Egalitarian Paxos~\cite{Moraru:2013}
+has clients send their commands to the nearest server, 
+then any server can commit
+a command with just one round of communication as long as other commands
+that are proposed concurrently commute with it.
+It has a smaller fast quorum than Generalized Paxos by one server.
+
+Both Generalized and Egalitarian Paxos balance load well between
+servers, since no leader is needed to commit commands when
+operations do not interfere. They are also able to achieve lower latency
+than Raft in WAN settings, since they do not need to include the leader
+(they can involve only the closest servers to the client). However, both
+of these protocols add significant complexity to Paxos.
+
+\subsection{Reducing number of servers (witnesses)}
+
+\begin{table}
+\centering
+\begin{tabular}{lccl}
+replication           & servers & state machines & delay when server fails \\
+\hline
+\noalign{\vskip .75ex}
+Traditional consensus & 5     & 5 & no delay \\
+Thrifty               & 5     & 3 & no delay for out-of-order logs; replicate \\
+                      &       &   & missing entries for in-order logs \\
+Harp/Cheap Paxos      & 3 + 2 & 3 & no delay \\
+Primary-backup        & 3     & 3 & communicate with external system to \\
+                      &       &   & remove failed server
+\end{tabular}
+\vcaption[approaches to reduce the servers involved in each decision]{
+Summary of approaches to reducing the number of servers involved in each
+consensus decision. In the sample configurations shown, each approach can
+tolerate two server failures with no possibility of data loss. The
+``servers'' column shows the number of servers required; the Harp/Cheap
+Paxos approaches need three fully capable servers and two additional
+smaller servers. The ``state machines'' column shows the number of state
+machines that are nearly up-to-date with the replicated state machine;
+these can be useful to service client requests. The ``delay when server
+fails'' column describes delays that may arise when a single server
+fails.
+}
+\label{tab:related:performance:witnesses}
+\end{table}
+
+There are several ways to reduce the number of servers involved in most
+operations without losing fault tolerance; these are summarized in
+Table~\ref{tab:related:performance:witnesses}. The first, which works
+with all consensus algorithms, is to simply replicate entries to a bare
+majority rather than the full cluster (called ``thrifty'' in
+\cite{Moraru:2013}). This halves the network load for the leader during
+normal operation, since it only has to replicate entries to half the
+cluster (it can replicate the entries to the others during idle
+periods). However, this optimization can result in delays when servers
+fail, as servers that will need to become part of the quorum might have
+fallen
+far behind. This impacts Paxos the least, since the new server can
+accept later entries before accepting earlier ones; it impacts
+Viewstamped Replication, Zab, and Raft more, since the new server's log
+has to be brought entirely up-to-date before it can accept new entries.
+
+Harp~\cite{Liskov:1991} extends Viewstamped Replication to take this
+idea one step further: \emph{witnesses} are servers that only
+participate in voting but do not normally participate in log replication
+and do not have state machines at all. When a server fails, a witness
+steps in to store log entries for that server until it recovers or is
+replaced. Witnesses allow the cluster to make consensus decisions even
+when some of the main servers have failed. As the resource
+requirements for witnesses are lower than for normal servers, they can
+run on limited hardware or as a secondary process on other servers. We
+think Raft could also support witnesses in a similar way. Cheap
+Paxos~\cite{Lamport:2004} (covered by a US
+patent~\cite{Lamport:2010cheap}) is similar to Harp, but claims to
+require even less powerful servers as witnesses.
+
+Trading off recovery time even more, a primary-backup replication scheme
+removes a minority of the cluster altogether (this is orthogonal to the
+replicated state machine vs.\ primary-copy distinction discussed in
+Section~\ref{related:rsm}).
+This approach is used in Apache Kafka~\cite{Rao:2013}.
+The primary replicates log entries to all of
+the backups and waits for all the backups to acknowledge each entry
+before committing it. If the primary fails, any of the backups' logs is
+equally suitable to become the new primary, but the old primary needs to
+be excluded from the cluster in case it returns. If a backup fails, it
+too needs to be excluded from becoming an eligible primary in the future.
+The group can rely on an external consensus service to select a new
+primary and exclude servers from becoming primary. To restore its
+original replication factor after a failure, the primary can catch a new
+server up, then mark it in the external consensus service as eligible
+to become primary. In an
+$n$-server cluster, this approach can recover from $n-1$ failures (with
+the help of an external consensus service during recovery), and it only
+needs to send $n-1$ messages to replicate each log entry. However, it
+may take longer to recover from failures, and similarly it is not able
+to mask stragglers (slow servers) as well as consensus does.
+
+\subsection{Avoiding persistent storage writes}
+
+Many papers suggest using replication rather than stable storage for
+durability. For example, in Viewstamped Replication Revisited, servers
+do not write log entries to stable storage. When a server restarts, its
+log is not used for voting until it learns the current information (its
+disk is only used as an optimization to avoid network transfers). The
+trade-off is that data loss is possible in catastrophic events. For
+example, if a majority of the cluster were to restart simultaneously, the
+cluster would have potentially lost entries and would not be able to
+form a new view. Raft could be extended in similar ways to support
+disk-less operation, but we think the risk of availability or data loss
+usually outweighs the benefits.

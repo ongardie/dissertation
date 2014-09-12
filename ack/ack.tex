@@ -1,0 +1,141 @@
+\prefacesection{Acknowledgments}
+
+Thanks to my family and friends for supporting me throughout the ups and
+downs of grad school. Mom, thanks for continuously pushing me to do well
+academically, even when I didn't see the point. I still don't know how
+you got me out of bed at 6~a.m.\ all those mornings. Dad, thanks for
+helping us earn these six (seven?) degrees, and I hope we've made you proud.
+Zeide, I wish I could give
+you a copy of this small book for your collection. Ernesto, thanks for
+sparking my interest in computers; I still think they're pretty cool.
+Laura, I'll let you know if and when I discover a RAMCloud. Thanks for
+listening to hours of my drama, even when you didn't understand the
+nouns. Jenny, thanks for helping me get through the drudgery of writing
+this dissertation and for making me smile the whole way through. You're
+crazy for having wanted to read this, and you're weird for having
+enjoyed it.
+
+I learned a ton from my many labmates, both in RAMCloud and in SCS.
+Deian, I don't know why you always cared about my work; I never
+understood your passion for that IFC nonsense, but keep simplifying it
+until us mortals can use it. Ankita, you've single-handedly increased
+the lab's average self-esteem and optimism by at least 20\%. I've
+watched you learn so much already; keep absorbing it all, and I hope
+you're able to see how far you've come. Good luck with your role as the
+new Senior Student. Thanks especially to Ryan and Steve, with whom I
+formed the first generation of RAMCloud students. Ryan, believe it or
+not, your optimism helped. You were always excited about wacky ideas,
+and I always looked forward to swapping CSBs (``cool story, bro'') with
+you. You'll make a great advisor. Steve, I miss your intolerance for
+bullshit, and I strive to match your standards for your own engineering
+work. You continuously shocked the rest of us with those silent bursts
+of productivity, where you'd get quarter-long projects done over a
+single weekend. You guys also figured out all the program requirements
+before I did and told me all the tricks. I continue to follow your lead
+even after you've moved on. (Ryan, you incorrectly used the British
+spelling ``acknowledgements'' rather than the American
+``acknowledgments''. Steve, you did too, but you're just Canadian, not
+wrong.)
+
+Thanks to the many professors who have advised me along the way. John
+Ousterhout, my Ph.D.\ advisor, should be a coauthor on this dissertation
+(but I don't think they would give me a degree that way). I have never
+learned as much professionally from any other person. 
+John teaches by setting a great example of how to
+code, to evaluate, to design, to think, and to write \emph{well}.
+I have never quite
+been on David \mazieres{}'s same wavelength; he's usually
+\SIrange{10}{30}{minutes}
+ahead in conversation. As soon as I could almost keep up with him
+regarding consensus, he moved on to harder Byzantine consensus problems.
+Nevertheless, David has looked out for me throughout my years in grad
+school, and I've picked up some of his passion for building useful
+systems and, more importantly, having fun doing so.
+Mendel Rosenblum carries intimate knowledge of low level details like
+x86 instruction set, yet also manages to keep track of the big
+picture. He's helped me with both over the years, surprising me
+with how quickly he can solve my technical problems and how clear my
+predicaments are when put into his own words. Thanks to Christos Kozyrakis
+and Stephen Weitzman for serving on my defense committee, and thanks to
+Alan Cox and Scott Rixner for introducing me to research during
+my undergraduate studies at Rice.
+
+Many people contributed directly to this dissertation work.
+A special thanks goes to David \mazieres{} and Ezra Hoch for each
+finding a bug in earlier versions of Raft. David emailed us one night at
+2:45~a.m.\ as he was reading through the Raft lecture slides for the
+user study. He wrote that he found ``one thing quite hard to follow in
+the slides,'' which turned out to be a major issue in Raft's safety.
+Ezra found a liveness bug in membership changes. He posted to the
+Raft mailing list,
+``What if the following happens?''~\cite{Hoch:2014}, and described an
+unfortunate series of events that could leave a cluster unable to
+elect a leader. Thanks also to Hugues Evrard for finding a small
+omission in the formal specification.
+
+The user study would not have been possible without the support of
+Ali Ghodsi, David Mazi\`{e}res, and the students of CS 294-91 at
+Berkeley and CS 240 at Stanford.
+Scott Klemmer helped us design the user study,
+and Nelson Ray advised us on statistical analysis.
+The Paxos slides for the user study borrowed heavily from a slide
+deck originally created by Lorenzo Alvisi.
+
+Many people provided feedback on other content in this dissertation.
+In addition to my reading committee, Jennifer Wolochow provided helpful comments
+on the entire dissertation.
+Blake Mizerany, Xiang Li, and Yicheng Qin at CoreOS pushed
+me to simplify the membership change algorithm towards
+single-server changes.
+Anirban Rahut from Splunk pointed out that membership changes may be
+needlessly slow when a server joins with an empty log.
+Laura Ongaro offered helpful feedback on the
+user study chapter. Asaf Cidon helped direct me in finding the
+probability of split votes during elections.
+Eddie Kohler helped clarify the trade-offs in Raft's commitment rule,
+and Maciej Smole\'{n}ski pointed out that because of it, if a leader
+were to restart an unbounded number of times before it could mark entries
+committed, its log could grow without bound (see Chapter~\ref{related}).
+Alexander Shraer helped clarify how membership changes work in Zab.
+
+Many people provided helpful feedback on the \name{} paper and user study
+materials, including
+Ed Bugnion,
+Michael Chan,
+Hugues Evrard,
+Daniel Giffin,
+Arjun Gopalan,
+Jon Howell,
+Vimalkumar Jeyakumar,
+Ankita Kejriwal,
+Aleksandar Kracun,
+Amit Levy,
+Joel Martin,
+Satoshi Matsushita,
+Oleg Pesok,
+David Ramos,
+Robbert van Renesse,
+Mendel Rosenblum,
+Nicolas Schiper,
+Deian Stefan,
+Andrew Stone,
+Ryan Stutsman,
+David Terei,
+Stephen Yang,
+Matei Zaharia,
+24 anonymous conference reviewers (with duplicates),
+and especially Eddie Kohler for shepherding the Raft paper.
+
+Werner Vogels tweeted a link to an early draft of the \name{} paper,
+which gave \name{} significant exposure. Ben Johnson and Patrick Van
+Stee both gave early talks on \name{} at major industry conferences.
+
+This work was supported by the Gigascale Systems Research Center and the
+Multiscale Systems Center, two of six research centers funded under the Focus
+Center Research Program, a Semiconductor Research Corporation program,
+by STARnet, a Semiconductor Research Corporation program sponsored by MARCO
+and DARPA, by the National Science Foundation under Grant No.~0963859,
+and by grants from Facebook, Google, Mellanox, NEC, NetApp, SAP, and Samsung.
+Diego Ongaro was supported by The Junglee Corporation Stanford Graduate
+Fellowship. James Myers at Intel donated several SSDs used in
+benchmarking.

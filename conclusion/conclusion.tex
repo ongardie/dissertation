@@ -1,0 +1,207 @@
+\chapter{Conclusion}
+\label{conclusion}
+
+Our goal with this dissertation was to create a better foundation for
+learning consensus and building replicated state machines. When we set
+out to learn consensus ourselves, we found the time and effort required
+to understand existing algorithms was too high, and we worried that this
+burden might be prohibitive for many students and practitioners. We were
+also left with significant design work before we could build a complete
+and practical system using consensus. Thus, we designed Raft as a more
+understandable and practical algorithm to serve as a better foundation for
+both learning and systems building.
+
+
+Several aspects of Raft's design contribute to its understandability. At
+a high level, the algorithm is decomposed differently from Paxos: it
+first elects a leader, then the leader manages the replicated log. This
+decomposition allows reasoning about Raft's different subproblems (leader
+election, log replication, and safety) relatively independently, and
+having a strong leader helps minimize state space complexity, as
+conflicts can only arise when leadership changes. Raft's leader election
+involves very little mechanism, relying on randomized timeouts to avoid
+and resolve contention. A single round of RPCs produces a leader in the
+common case, and the voting rules guarantee that the leader already has all
+committed entries in its log, allowing
+it to proceed directly with log replication. Raft's log replication is
+also compact and simple to reason about, since it restricts the way
+logs change over time and how they differ from each other.
+%
+
+Raft is well-suited for practical systems: it is described in enough
+detail to implement without further refinement, it solves all the major
+problems in a complete system, and it is efficient. Raft adopts a
+different architecture that is more applicable for building systems:
+consensus is often defined as agreement on a single value, but in Raft
+we defined it in terms of a replicated log, as this is needed to build a
+replicated state machine. Raft manages the replicated log efficiently by
+leveraging its leader; committing a request requires just one round of
+RPCs from the leader. Moreover, this dissertation has mapped out the
+design space for all the major challenges in building a complete system:
+%
+\begin{itemize}
+%
+\item Raft allows changing the cluster membership by adding or removing
+a single server at a time. These operations preserve safety simply,
+since at least one server overlaps any majority during the change.
+More complex changes in membership are implemented as a series of
+single-server changes. Raft allows the cluster to continue operating
+normally during changes.
+%
+\item Raft supports several ways to compact the log, including both
+snapshotting and incremental approaches. Servers compact the committed
+portions of their logs independently; the main idea involves
+transferring responsibilities for the start of the log from Raft itself
+to the server's state machine.
+%
+\item Client interaction is essential for the overall system to work
+correctly. Raft provides linearizability for its client operations, and
+read-only requests can bypass the replicated log for performance while
+still providing the same consistency guarantees.
+%
+\end{itemize}
+
+This dissertation analyzed and evaluated various aspects of Raft,
+including understandability, correctness, and the performance of leader
+election and log
+replication. The user study showed that,
+after students learned Raft or Paxos, 33 of 43 of them were able to
+answer questions about Raft better, and 33 of 41 stated they thought
+Raft would be easier to implement or explain than Paxos. The proof of
+safety helps establish Raft's correctness, and the formal specification
+is useful for practitioners, as it eliminates any ambiguities in Raft's
+description. The randomized leader election algorithm was shown
+to work well in a variety of scenarios, typically electing a leader
+in less than one second. Finally, measurements showed that the current version of
+LogCabin can sustain about \num{20000} kilobyte-sized writes per second
+with a three-server cluster.
+
+We are encouraged by Raft's fast adoption in industry, which we believe
+stems from its understandability and its practicality. One person's
+dilemma highlights both the problems that Raft set out to solve and the
+benefits that it offers. Nate Hardt
+built a Paxos-based system at Scale Computing
+and had been struggling over the past year to iron out the issues with
+his implementation. He is now close to having an efficient, working
+system, but after discovering Raft, he is considering rebuilding the
+system with Raft. He believes his team would be able to more readily
+help with a Raft implementation, since they can understand the algorithm
+more easily and learn about all of the aspects of a complete system.
+Fortunately, others starting on new consensus projects have an easier
+choice. Many have already been inspired to build Raft systems just for
+the pleasure of learning, speaking to its understandability; others are
+implementing Raft for production use, speaking to its practicality.
+
+
+\section{Lessons learned}
+
+
+I have learned many things during my years in graduate school, from how
+to build production-quality systems to how to conduct research. In this
+section I briefly describe some of the important lessons that I can pass
+on to other researchers and systems-builders.
+
+\subsection{On complexity}
+
+John once told me I had a ``high tolerance for complexity.'' At first I
+thought that was a compliment, that I could handle things that lesser
+humans could not. Then I realized it was a criticism. Though my ideas
+and code solved the problems they were meant to address, they introduced
+an entirely new set of problems: they would be difficult to explain,
+learn, maintain, and extend.
+
+With Raft, we were intentionally intolerant of complexity and
+put that to good use. We set out to address the inherently complex problem
+of distributed consensus with the most understandable possible solution.
+Although this required managing a large amount of complexity, it worked
+towards minimizing that complexity for others.
+
+Every system has a \emph{complexity budget}: the system offers some
+benefits for its users, but if its complexity outweighs these benefits,
+then the system is no longer worthwhile.
+Distributed consensus is a problem that is fundamentally complex, and a
+large chunk of its complexity budget must be spent just to arrive at a
+complete and working solution. I think many consensus algorithms and
+systems before Raft have exhausted their complexity budgets, and this
+might explain why few consensus-based systems are readily available. I
+hope Raft has changed this calculation and made these systems worth
+building.
+
+\subsection{On bridging theory and practice}
+
+We started this work because we wanted to build a system using consensus
+and found that it was surprisingly hard to do. This resonated with many
+others that had tried consensus and had given up on it in the past, but
+its value was lost on many academics. By making things simple and
+obvious, Raft appears almost uninteresting to academics. The academic
+community has not considered understandability per se to be an important
+contribution; they want novelty in some other dimension.
+
+Academia should be more open to work that bridges the gap between theory
+and practice. This type of work may not bring any new
+\emph{functionality} in theory, but it does give a larger number of
+students and practitioners a new \emph{capability}, or at least
+substantially reduces their burden. The question of ``Would I teach,
+use, and recommend this work?'' is too often ignored, when, ultimately,
+it matters to our field.
+
+
+The task of bridging the gap often needs to come from academic research.
+In industry, deadlines to ship products usually lead practitioners to ad
+hoc solutions that are just good enough to meet their needs. They can
+point out challenges (as the Chubby authors did with Paxos~\cite{Chandra:2007}), but they cannot
+usually invest the time needed to find the best solutions. With Raft, we
+weren't content with good enough, and we think that is what makes our
+work valuable. We explored all the design choices we could think of;
+this took careful study at a depth that is difficult to accommodate in
+industry, but it produced a valuable result that many others can benefit
+from.
+
+\subsection{On finding research problems}
+
+When I started graduate school, I did not know how to find interesting
+research problems to work on. This seems silly to me now, as there are
+too many problems out there. There are various approaches to finding
+them, but I have found this one to be effective:
+%
+\begin{itemize}
+%
+\item First, start building something. I do not think it matters much
+what this something is, as long as you are motivated to build it. For
+example, you might choose to build an application you would like to have
+or rewrite an existing project in a new programming language you would
+like to learn.
+%
+\item Second, pick a metric and optimize your system for it. For Raft,
+we set out to design the most understandable algorithm. Other projects
+optimize for performance, security, correctness, usability, or a number
+of other metrics.
+%
+\end{itemize}
+
+The key to this approach is to ask, at every step of the way, what is
+the absolute best possible way to maximize your metric? This inevitably
+leads to either discovering something new to learn, or quite often,
+finding that no existing solution is quite good enough---a potential
+research project.
+
+The problem then shifts from not having any problems to work on to
+having too many, and the challenge becomes deciding which one(s) to
+choose. This can pose a difficult judgment call; I suggest looking for
+projects that are conceptually interesting, are exciting to work on, and
+have the potential for significant impact.
+
+\section{Final comments}
+
+This dissertation aims to bridge the gap between theory and practice in
+distributed consensus. Much of the prior academic work on distributed
+consensus has been theoretical in nature and difficult to apply to
+building practical systems. Meanwhile, many of the real-world systems
+based on consensus have been ad hoc in nature, where
+practitioners have stopped at solutions that were good enough for their
+needs, and their implications and alternatives were not fully explored.
+In Raft, we have thoroughly explored the design space for a complete
+consensus algorithm with a focus on understandability, and we have also
+built a complete consensus-based system in order to ensure that our
+ideas are practical. We hope this will serve as a good foundation both
+for teaching consensus and for building future systems.

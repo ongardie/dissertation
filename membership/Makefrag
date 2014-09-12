@@ -1,0 +1,28 @@
+FIGGENPDF := $(FIGGENPDF) \
+  membership/special4to5.pdf \
+  membership/special5to4.pdf \
+  membership/special3to4.pdf \
+  membership/special4to3.pdf \
+  membership/catchupstart.pdf \
+  membership/catchupend.pdf \
+  membership/catchupone.pdf \
+  membership/catchupmany.pdf
+
+membership/special4to5.pdf: membership/special.svg
+	inkscape -T -z -i 4to5 -A $@ $<
+membership/special5to4.pdf: membership/special.svg
+	inkscape -T -z -i 5to4 -A $@ $<
+membership/special3to4.pdf: membership/special.svg
+	inkscape -T -z -i 3to4 -A $@ $<
+membership/special4to3.pdf: membership/special.svg
+	inkscape -T -z -i 4to3 -A $@ $<
+
+membership/catchupstart.pdf: membership/catchup2.svg
+	inkscape -T -z -i start -A $@ $<
+membership/catchupend.pdf: membership/catchup2.svg
+	inkscape -T -z -i end -A $@ $<
+
+membership/catchupone.pdf: membership/catchup3.svg
+	inkscape -T -z -i one -A $@ $<
+membership/catchupmany.pdf: membership/catchup3.svg
+	inkscape -T -z -i many -A $@ $<

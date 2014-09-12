@@ -1,0 +1,57 @@
+\section{Conclusion}
+\label{compaction:conclusion}
+
+This chapter discussed several approaches to log compaction in Raft,
+which are summarized in Figure~\ref{fig:compaction:rules}. Different
+approaches are suitable for different systems, depending on the size of
+the state machine, the level of performance required, and the amount of
+complexity budgeted.
+Raft supports a wide variety of approaches that share a common
+conceptual framework:
+%
+\begin{itemize}
+%
+\item Each server compacts the committed prefix of its log
+independently.
+%
+\item The basic interaction between the state machine and Raft involves
+transferring responsibility for a prefix of the log from Raft to the
+state machine. Once the state machine has applied commands to disk, it
+instructs Raft to discard the corresponding prefix of the log. Raft
+retains the index and term of the last entry it discarded, along with
+the latest configuration as of that index.
+%
+\item Once Raft has discarded a prefix of the log, the state machine
+takes on two new responsibilities: loading the state on a restart and
+providing a consistent image to transfer to a slow follower.
+%
+\end{itemize}
+
+Snapshotting for memory-based state machines is used successfully in
+several production systems, including Chubby and ZooKeeper,
+and we have implemented this approach in LogCabin. Although
+operating on an in-memory data structure is fast for most operations,
+performance during the snapshotting process may be significantly
+impacted. Snapshotting
+concurrently helps to hide the resource usage, and in the future,
+scheduling servers across the cluster to snapshot at different times
+might keep snapshotting from affecting clients at all.
+
+Disk-based state machines that mutate their state in place are
+conceptually simple. They still require copy-on-write for transferring a
+consistent disk image to other servers, but this may be a small burden
+with disks, which naturally split into blocks. However, random disk writes
+during normal operation tend to be slow, so this approach will limit the
+system's write throughput.
+
+Ultimately, incremental approaches can be the most efficient form of
+compaction. By
+operating on small pieces of the state at a time, they can limit bursts
+in resource usage (and they can also compact concurrently). They can
+also avoid writing the same data out to disk repeatedly; stable
+data should make its way to a region of disk that does not get
+compacted often. While implementing incremental compaction can be complex, this
+complexity can be offloaded to a library such as LevelDB. Moreover, by
+keeping data structures in memory and caching more of the disk in
+memory, the performance for client operations with incremental
+compaction can approach that of memory-based state machines.

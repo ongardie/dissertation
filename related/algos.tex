@@ -1,0 +1,151 @@
+\section{Overview of consensus algorithms}
+\label{related:overview}
+
+This section introduces existing consensus algorithms that are
+comparable to Raft, specifically Paxos, Viewstamped Replication, and
+Zab. Like Raft, these algorithms handle
+fail-stop but not Byzantine failures, and they do not rely on time for
+safety (the key properties of practical consensus algorithms can be
+found in Section~\ref{motivation:problem}). Readers may also be
+interested in van Renesse \emph{et al.}'s more theoretical comparison of
+these algorithms~\cite{Renesse:2014}.
+
+Other consensus algorithms exist for
+different system models, but these are less commonly used. Notably, some
+algorithms address Byzantine consensus, where arbitrary failures and
+misbehaviors are possible~\cite{Castro:1999,Liskov:2010,Martin:2005};
+these are more complex and lower in performance than algorithms under
+the fail-stop model.
+
+\subsection{Paxos}
+
+Paxos (most commonly Multi-Paxos) is the most widely deployed consensus
+algorithm today:
+%
+\begin{itemize}
+%
+\item Several Google systems use Paxos, including the
+Chubby~\cite{Burrows:2006, Chandra:2007} lock service and the
+Megastore~\cite{Baker:2011} and Spanner~\cite{Corbett:2012} storage
+systems. Chubby is used for cluster metadata, whereas
+Megastore and Spanner use Paxos for all of their data storage.
+%
+\item Microsoft also uses Paxos in various systems. Microsoft's
+Autopilot service~\cite{Isard:2007} (used by Bing) and Windows Azure
+Storage~\cite{Calder:2011} use Paxos for metadata. Azure's Active
+Directory Availability Proxy~\cite{azure:availability} uses Paxos to
+agree on a series of requests for arbitrary REST services.
+%
+%
+%
+\item The open-source Ceph storage system uses Paxos to store its
+\emph{cluster map}, the data structure that allows clients to find
+where objects are located~\cite{Weil:2006,ceph:monitor}.
+%
+\item Recently, eventually-consistent data stores such as
+Cassandra~\cite{Cassandra} and Riak~\cite{Riak} have added Paxos to
+provide linearizable access for some data. Cassandra appears to
+use an unoptimized implementation of Basic Paxos~\cite{Ellis:2013}, and
+a future release of Riak will include an implementation of
+Multi-Paxos~\cite{Blomstedt:2013}.
+%
+%
+\end{itemize}
+
+Paxos is a broad term for a whole family of consensus protocols.
+Lamport's original description of Paxos~\cite{Lamport:1998}
+presents sketches for a complete system but not in
+enough detail to implement.
+Several subsequent papers attempt to explain Paxos~\cite{Lamport:2001,
+Lampson:1996, Lampson:2001}, but they also
+don't explain their algorithms completely enough to implement. There are
+many other elaborations of Paxos, which fill in missing details and
+modify Paxos to provide a better foundation for
+implementation~\cite{Renesse:2011, Kirsch:2008}. Additionally, we
+developed our own explanation for and elaboration of Paxos in a video
+lecture as part of the Raft user study~\cite{study}; the Multi-Paxos
+variant we used is summarized in
+Figure~\ref{fig:appendix:userstudy:paxossummary1}. Unfortunately, all of
+these elaborations of Paxos differ from each other. This is burdensome
+for readers, and it also makes comparisons difficult.
+%
+Ultimately, most implementations bear little resemblance to the Paxos
+literature, and some may even deviate so far from Paxos as to resemble Raft.
+After reading an earlier draft of the Raft paper, one Spanner developer
+made the following remark during a talk:
+%
+\begin{quote}
+%
+Our Paxos implementation is actually closer to the Raft algorithm than
+to what you read in the Paxos paper.~\cite{Kanthak:2013}
+%
+\end{quote}
+%
+For the purpose of
+this chapter, we have tried to compare Raft to common ideas found in
+Multi-Paxos elaborations, but we did not limit our discussion to a
+particular algorithm.
+
+Chapter~\ref{motivation} discussed how Paxos is difficult to understand
+and is a poor foundation for building systems. Its single-decree
+formulation is difficult to decompose, and Multi-Paxos leaves the log
+with too much nondeterminism and too little structure (e.g., it can have
+holes). Multi-Paxos uses only a very weak form of leadership as a
+performance optimization. These problems make Paxos needlessly complex,
+which burdens both students and systems builders.
+
+\subsection{Leader-based algorithms}
+
+Viewstamped Replication and Zab are two leader-based consensus
+algorithms that are closer in structure to Raft and therefore share many
+of Raft's advantages over Paxos. As in Raft, each algorithm first elects
+a leader, then has that leader manage the replicated log. The algorithms
+differ from Raft in how they handle leader election and repairing
+inconsistencies in the logs after leader changes; the next sections
+in this chapter go into more details on these differences.
+
+Oki and Liskov's Viewstamped Replication is a leader-based consensus
+algorithm developed around the same time as Paxos. The original
+description~\cite{Oki:1988,Oki:1988t} was intertwined with a protocol
+for distributed transactions, which may have caused many readers to
+overlook its contributions. The core consensus algorithm has been
+separated in a recent update called Viewstamped Replication
+Revisited~\cite{Liskov:2012}, and \mazieres~\cite{Mazieres:2007} also
+expanded on the details of the core algorithm before Liskov's update.
+Though Viewstamped Replication is not widely used in practice, it was
+used in the Harp File System~\cite{Liskov:1991}.
+
+Zab~\cite{Junqueira:2011}, which stands for ZooKeeper Atomic Broadcast,
+is a much more recent algorithm that resembles Viewstamped
+Replication. It is used in the Apache ZooKeeper
+coordination service~\cite{Hunt:2010}, which is the most popular
+open-source consensus system today. A cluster membership change
+mechanism was recently developed for Zab~\cite{Shraer:2012} and is
+scheduled for a future ZooKeeper release~\cite{ZOOKEEPER-107}.
+
+Raft has less mechanism than Viewstamped Replication and Zab
+because it minimizes the functionality in non-leaders. For example, we
+counted the message types Viewstamped Replication Revisited and Zab use
+for basic consensus and membership changes (excluding log compaction and
+client interaction, as these are nearly independent of the algorithms).
+Viewstamped Replication Revisited and Zab each define 10 different
+message types, while Raft has only 4 message types (two RPC requests and
+their responses). Raft's messages are a bit more dense than the other
+algorithms', but they are simpler collectively. In addition, Viewstamped
+Replication and Zab are described in terms of transmitting entire logs
+during leader changes; additional message types will be required to
+optimize these mechanisms so that they are practical.
+
+Zab presents a slightly stronger guarantee than Raft for clients issuing
+concurrent requests. If a client pipelines multiple requests, Zab
+guarantees that they are committed in order (if at all); this property is
+called \emph{FIFO client order}. For example, this allows a client to
+issue a bunch of changes and then release a lock, all asynchronously;
+other clients will see the changes reflected in the replicated state
+machine before they see the lock released. Paxos does not satisfy this
+property, since commands are assigned to log entries with few
+constraints; see~\cite{Junqueira:2011}. Raft and Viewstamped Replication
+could provide the same guarantee as Zab, since their leaders append new
+entries in order to the log. However, some extra care would be required to
+prevent network and client retries from reordering the client's commands
+to leaders.

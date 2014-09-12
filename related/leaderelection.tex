@@ -1,0 +1,168 @@
+\section{Leader election}
+\label{related:leaderelection}
+
+This section discusses how different consensus algorithms address leader
+election. Raft uses an approach with very little mechanism, while other
+algorithms are generally more complex without offering practical
+advantages.
+
+In a broad sense, leader election includes the following four issues,
+which the following subsections discuss in depth:
+%
+\begin{enumerate}
+%
+\item \textbf{Detecting a failed leader.}\\
+%
+Raft uses heartbeats and timeouts.
+%
+\item \textbf{Neutralizing deposed leaders.}\\
+%
+In Raft, candidates propagate a new term number while soliciting votes
+and replicating the log.
+%
+\item \textbf{Selecting a server to be the new leader.}\\
+%
+Raft uses randomized timeouts, and the first candidate to time out
+usually becomes leader. Voting ensures that there is at most one leader
+per term.
+%
+\item \textbf{Ensuring the leader has all committed entries.}\\
+%
+In Raft, the log comparison check during voting ensures that a new
+leader already has all committed entries; no log entries are
+transferred.
+%
+\end{enumerate}
+
+\subsection{Detecting and neutralizing a failed leader}
+
+In all practical settings, it is impossible to distinguish a failed server from a
+slow server; this is the key characteristic of an asynchronous system.
+Fortunately, practical consensus algorithms preserve safety even if
+leaders are suspected of failing when they are simply slow. Thus,
+failure detection only needs to detect failed servers eventually
+(\emph{completeness}) and not suspect available servers with high
+probability (\emph{accuracy}). These weak requirements are easily
+satisfied in practical systems by using heartbeats and timeouts.
+
+Various failure detectors built on heartbeats and timeouts have been
+discussed in the theoretical literature~\cite{Chandra:1996}. $\lozenge
+P$ (or equivalently, $\Omega$) is a failure detector with nice
+theoretical properties: eventually (after some unknown period of time),
+it will be perfectly correct and accurate. It does so by increasing its
+timeouts every time a suspicion is incorrect; eventually, its timeouts
+will be so large that it makes no false suspicions.
+However, this behavior is
+impractical for real systems, which care about availability:
+if the timeout value grows too large, the
+cluster will wait too long to detect a leader failure. It is better to
+falsely suspect a leader of failure when it is slow than to wait around
+to be sure. Therefore, Raft's timeouts are fixed low enough to
+satisfy the system's availability requirements.
+
+Paxos, Zab, and Viewstamped Replication either do not specify a failure
+detector or briefly mention the use of timeouts but do not spell out the
+details. This may be because approaches to failure detection are mostly
+independent of the consensus algorithm. However, we found that combining
+heartbeats with other messages has practical benefits. For example,
+Raft's AppendEntries RPC not only serves as a heartbeat but also informs
+followers of the latest commit index.
+
+Since failure detectors can mistakenly report the leader as having
+failed when it is in fact slow, a suspected leader must be neutralized.
+The various consensus algorithms handle this similarly using a
+monotonically increasing number (called a term in Raft, a proposal
+number in Paxos, a view in Viewstamped Replication, or an epoch in Zab).
+Once a server has seen a larger number, it will no longer accept
+requests from a leader with a smaller number. Most algorithms, including
+Raft, inform the sender that it is stale when a server receives such
+a request; in some descriptions of Paxos, however, the recipient does
+not reply.
+
+Algorithms assign term numbers to servers in two different ways. Zab and
+Raft use voting to ensure there is at most one leader per term: if a
+server is able to collect a majority of votes, it has exclusive use of
+that term number for replicating log entries. Paxos and Viewstamped
+Replication divide the space of numbers so that servers do not compete
+for particular numbers (e.g., by allocating numbers to servers in a
+round-robin fashion). There does not seem to be a practical difference
+between these two approaches, since voting must occur in either case.
+
+\subsection{Selecting a new leader and ensuring it has all committed
+entries}
+
+\begin{table}
+\centering
+\begin{tabular}{lccc}
+algorithm & new leader                & vote collector & handles preferences \\
+\hline
+\noalign{\vskip .75ex}
+Paxos     & any server                & new leader & yes\\
+VR        & has up-to-date log        & view manager & no \\
+VRR       & determined by view number & new leader & no \\
+Zab       & any server                & new leader & yes \\
+Raft      & has up-to-date log        & new leader & no
+\end{tabular}
+\vcaption[summary of how different algorithms select a new leader]{
+Summary of how different algorithms select a new leader. The ``new
+leader'' column shows which servers may become the new leader. The
+``vote collector'' column shows which server solicits votes; in all but
+the original Viewstamped Replication paper, this is the candidate for
+leadership. The ``handles preferences'' column shows which algorithms
+are able to accommodate preferences in which server becomes leader
+during election; other algorithms would need separate leadership transfer
+mechanisms to accommodate this.
+}
+\label{tab:related:leaderelection}
+\end{table}
+
+Algorithms differ in which server they select as leader, as summarized
+in Table~\ref{tab:related:leaderelection}. Paxos and Zab choose any
+server as leader, while the other algorithms restrict which server can
+become leader. One advantage of Paxos and Zab's approach is that they
+can accommodate preferences about which server should be leader during
+leader election. For example, if a deployment performs best when a
+server from a particular datacenter acts as leader, Paxos or Zab can
+allow that server to become leader. The other algorithms are not able to
+do so because they constrain which server may become leader; they need a
+separate leadership transfer mechanism (as described in
+Chapter~\ref{basicraft} for Raft) to accommodate such preferences.
+
+Viewstamped Replication Revisited uses a different round-robin
+approach for choosing which server becomes leader. The leader is a
+function of the view (term) number: in an $n$-server cluster, a server $i$ is
+the leader for view $v$ if $v\ \%\ n = i$. This approach has the
+advantage that clients can likely guess and find the leader based on the
+current view number (to do this, clients must track the current
+configuration and view number). However, it may result in additional
+delays if the designated leader for a view is unavailable or if servers
+have different notions of the current view.
+
+The original Viewstamped Replication algorithm is closest to Raft in
+that only a server whose log is as up-to-date as a majority of the
+cluster can become leader. This has a big advantage in that it avoids
+transferring log entries to the new leader; it simplifies the flow of
+data to go only from clients to leaders to followers. Viewstamped
+Replication uses one server to manage the election process (the view
+manager) and a different server becomes the leader. The view manager
+chooses the server with the most up-to-date log of a majority of the
+cluster to be the new leader, then informs that server of its new
+leadership role. In Raft, the same server both runs the election and
+becomes leader, which avoids some mechanism and reduces state space
+complexity. Zab also suggests choosing the new leader as having a
+sufficiently up-to-date log (like Raft) as a possible optimization, and
+this optimization is apparently implemented in
+ZooKeeper~\cite{ZooKeeperPersonalCommunication}.
+
+Paxos, Viewstamped Replication Revisited, and (unoptimized) Zab need
+additional mechanism to ensure the new leader has all committed entries,
+since they do not choose the leader based on its log. In Paxos, the
+leader typically runs both phases of single-decree Paxos for each log
+entry in which it does not know the committed value, until it reaches a
+log index for which no available server has seen any more proposals.
+This may result in significant delays until the new leader catches up.
+Viewstamped Replication Revisited and Zab are described as if servers
+send their entire logs to the new leader and the new leader adopts the
+most up-to-date one. This is a nice model but is impractical for large
+logs; both papers suggest optimizing this by sending fewer entries but
+do not spell out the details.

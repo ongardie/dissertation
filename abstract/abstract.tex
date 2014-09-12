@@ -1,0 +1,38 @@
+\prefacesection{Abstract}
+
+Distributed consensus is fundamental to building fault-tolerant systems.
+It allows a collection of machines to work as a coherent group that can
+survive the failures of some of its members. Unfortunately, the most
+common consensus algorithm, Paxos, is widely regarded as difficult to
+understand and implement correctly.
+
+This dissertation presents a new consensus algorithm called Raft, which
+was designed for understandability. Raft first elects a server as leader,
+then concentrates all decision-making onto the leader. These two basic
+steps are relatively independent and form a better structure than Paxos,
+whose components are hard to separate. Raft elects a leader using voting
+and randomized timeouts. The election guarantees that the leader already
+stores all the information it needs, so data only flows outwards
+from the leader to other servers. Compared to other leader-based
+algorithms, this reduces mechanism and simplifies the behavior. Once a
+leader is elected, it manages a replicated log. Raft leverages a simple
+invariant on how logs grow to reduce the algorithm's state space and
+accomplish this task with minimal mechanism.
+
+Raft is also more suitable than previous algorithms for real-world
+implementations. It performs well enough for practical deployments, and
+it addresses all aspects of building a complete system, including how to
+manage client interactions, how to change the cluster membership, and
+how to compact the log when it grows too large. To change the cluster
+membership, Raft allows adding or removing one server at a time (complex
+changes can be composed from these basic steps), and the cluster
+continues servicing requests throughout the change.
+
+We believe that Raft is superior to Paxos and other consensus
+algorithms, both for educational purposes and as a foundation for
+implementation. Results from a user study demonstrate that Raft is
+easier for students to learn than Paxos. The algorithm has been formally
+specified and proven, its leader election algorithm
+works well in a variety of environments, and its performance is
+equivalent to Multi-Paxos. Many implementations of Raft are now
+available, and several companies are deploying Raft.

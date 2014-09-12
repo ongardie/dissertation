@@ -1,0 +1,208 @@
+\section{Incremental cleaning approaches}
+\label{compaction:incremental}
+
+Incremental approaches to compaction, such as log
+cleaning~\cite{Rosenblum:1992,Rumble:2014} and log-structured merge
+trees~\cite{ONeil:1996,Chang:2006} (LSM trees), are also possible.
+Although they are more complex than snapshotting, incremental
+approaches have several desirable features:
+%
+\begin{itemize}
+%
+\item They operate on only a fraction of the data at once, so they
+spread the load of compaction evenly over time.
+%
+\item They write to disk efficiently, both in normal operation and
+while compacting. They use large, sequential writes in both cases.
+Incremental approaches also selectively compact parts of the disk
+with the most reclaimable space, so they write less data to disk than
+snapshotting for memory-based state machines (which rewrites all of disk
+on every snapshot).
+%
+\item They can transfer consistent state snapshots fairly easily
+because they do not modify regions of disk in place.
+%
+\end{itemize}
+%
+Section~\ref{compaction:incremental:cleaning} and
+Section~\ref{compaction:incremental:lsmtrees}
+first describe the basics of log cleaning and LSM trees in
+general. Then, Section~\ref{compaction:incremental:raft}
+discusses how they could be applied to Raft.
+
+\subsection{Basics of log cleaning}
+\label{compaction:incremental:cleaning}
+
+Log cleaning was introduced in the context of log-structured file
+systems~\cite{Rosenblum:1992} and has recently been proposed for
+in-memory storage systems such as RAMCloud~\cite{Rumble:2014}.
+In principle, log cleaning can be used for any type of data structure,
+though some would be harder to implement efficiently than others.
+
+Log cleaning maintains the log as the place of record for the system's
+state. The layout is optimized for sequential writing, and it makes read
+operations effectively random access. Thus, indexing structures are
+needed to locate data items to read.
+
+In log cleaning, the log is split into consecutive regions called
+\emph{segments}. Each pass of the log cleaner compacts the log using a
+three-step algorithm:
+%
+\begin{enumerate}
+%
+\item It first selects segments to clean that have accumulated a large
+fraction of obsolete entries.
+%
+\item It then copies the \emph{live} entries (those that contribute to
+the current system state) from those segments to the head of the log.
+%
+\item Finally, it frees the storage space for the segments, making
+that space available for new segments.
+%
+\end{enumerate}
+%
+To minimize the effect on normal operation, this process can be done
+concurrently~\cite{Rumble:2014}.
+
+As a result of copying the live entries forwards to the head of the log,
+the entries get to be out of order for replay. The entries can include
+additional information (e.g., version numbers) to recreate the correct
+ordering when the log is applied.
+
+The policy of which segments are selected for cleaning has a big impact
+on performance; prior work proposes a cost-benefit policy that factors
+in not only the amount of space utilized by live entries but also how
+long those entries are likely to remain
+live~\cite{Rosenblum:1992,Rumble:2014}.
+
+Determining whether entries are live is the state machine's
+responsibility. For example, in a key-value store, a log entry to set a
+key to a particular value is live if the key exists and is currently set
+to the given value. Determining whether a log entry that deletes a key
+is live is more subtle: it is live as long as any prior entries setting that key
+are present in the log. RAMCloud
+preserves deletion commands (called tombstones) as
+necessary~\cite{Rumble:2014}, but another approach is to periodically write
+out a summary of the keys that
+\emph{are} present in the current state, then all log entries regarding
+keys not listed are not live. Key-value stores are a fairly simple
+example; other state machines are possible, but unfortunately,
+determining liveness will be different for each.
+
+\subsection{Basics of log-structured merge trees}
+\label{compaction:incremental:lsmtrees}
+
+
+Log-structured merge trees (LSM trees) were first described by
+O'Neil~\cite{ONeil:1996} and were later popularized in distributed
+systems by BigTable~\cite{Chang:2006}. They are used in systems such as
+Apache Cassandra~\cite{Cassandra} and HyperDex~\cite{Escriva:2012} and
+are available as libraries such as LevelDB~\cite{leveldb} and its forks
+(e.g., RocksDB~\cite{rocksdb} and HyperLevelDB~\cite{hyperleveldb}).
+
+LSM trees are tree-like data structures that store ordered key-value
+pairs. At a high level, they use disk similarly to log cleaning
+approaches: they write in large sequential strides and do not modify
+data on disk in place. However, instead of maintaining all state in the
+log, LSM trees reorganize the state for better random access.
+
+A typical LSM tree keeps recently written keys in a small log on disk.
+When the log reaches a fixed size, it is sorted by key and written to
+a file called a \emph{run} in sorted order.
+Runs are never modified in place, but a compaction process periodically
+merges multiple runs together, producing new runs and discarding the old
+ones. The merge is reminiscent of merge sort; when a key is in multiple
+input runs, only the latest version is kept, so the produced runs are
+more compact. The compaction strategy used in LevelDB is summarized in
+Figure~\ref{fig:compaction:rules}; it segregates runs by age for
+efficiency (similar to log cleaning).
+
+During normal operation, the state machine can operate on this data
+directly. To read a key, it first checks to see if that key was modified
+recently in its log, then checks each run. To avoid checking every run
+for a key on every lookup, some systems create a bloom filter for each
+run (a compact data structure which can say with certainty in some cases
+that a key does not appear in a run, though it may sometimes require
+searching a run even when a key is not present).
+
+\subsection{Log cleaning and log-structured merge trees in Raft}
+\label{compaction:incremental:raft}
+
+We have not attempted to implement log cleaning or LSM trees in Raft,
+but we speculate that both would work well. Applying LSM trees to Raft
+appears to be fairly straightforward. Because the Raft log already
+stores recent entries durably on disk, the LSM tree can keep recent data
+in a more convenient tree format in memory. This would be fast for servicing
+lookups, and when the Raft log reached a fixed size, the tree would already
+be in sorted order to write to disk as a new run. Transferring the state
+from the leader to a slow follower requires sending all the runs to the
+follower (but not the in-memory tree); fortunately, runs are immutable,
+so there is no concern of the runs being modified during the transfer.
+
+\begin{figure}
+\centering
+
+\begin{subfigure}{\textwidth}
+\centering
+\includegraphics[scale=.45]{compaction/cleaningdirect}
+\caption{
+Cleaning the Raft log directly would lead to many holes, which would
+add significant complexity to Raft and its interaction with the state
+machine.
+}
+\label{fig:compaction:incremental:cleaningdirect}
+\end{subfigure}
+
+\vspace{2ex}
+
+\begin{subfigure}{\textwidth}
+\centering
+\includegraphics[scale=.45]{compaction/cleaningtwologs}
+\caption{
+The state machine could instead structure its own data as a log and
+clean that log independently, without involving Raft.
+}
+\label{fig:compaction:incremental:cleaningtwologs}
+\end{subfigure}
+
+\vcaption[approaches to log cleaning in Raft]{
+Two possible approaches to log cleaning in Raft.
+}
+\end{figure}
+
+Applying log cleaning to Raft is less obvious. We first considered an
+approach in which the Raft log was divided into segments and cleaned
+(see Figure~\ref{fig:compaction:incremental:cleaningdirect}).
+Unfortunately, cleaning would place a lot of holes in the log where
+segments were freed, which would require a modified approach to log
+replication. We think this approach could be made to work, but it adds
+significant complexity to Raft and its interaction with the state
+machine. Moreover, since only the leader can append to the Raft log,
+cleaning would need to be leader-based, which would waste the leader's
+network bandwidth (this is discussed further in
+Section~\ref{compaction:leader}).
+
+
+A better approach would be to handle log cleaning similarly to LSM
+trees: Raft would keep a contiguous log for recent changes, and the
+state machine would keep its own state as a log, but these logs would be
+logically distinct (see
+Figure~\ref{fig:compaction:incremental:cleaningtwologs}). When the Raft
+log grew to a fixed size, its new entries would be written as a new
+segment in the state machine's log, and the corresponding prefix of the
+Raft log would be discarded. Segments in the state machine would be
+cleaned independently on each server, and the Raft log would remain
+entirely unaffected by this. We prefer this approach over cleaning the
+Raft log directly, since the complexity of log cleaning is encapsulated
+entirely in the state machine (the interface between the state machine
+and Raft remains simple), and servers can clean independently.
+
+As described, this approach would require the state machine to write all of
+Raft's log entries into its own log (though it could do so in large
+batches). This additional copy could be optimized away by directly
+moving a file consisting of log entries from Raft's log and
+incorporating that file into the state machine's data structures.
+This could be a helpful optimization for performance-critical systems, but
+unfortunately, it would more tightly couple the state machine and the
+Raft module, since the state machine would need to understand the
+on-disk representation of the Raft log.

@@ -1,0 +1,300 @@
+\chapter{Correctness}
+\label{correctness}
+
+Since the purpose of consensus is to maintain consistency across a
+replicated state machine, correctness is a key concern. Not only must
+the algorithm itself be correct, but others must also be able to
+implement it correctly in real systems. We took a pragmatic approach to
+correctness in Raft, building a foundation through understanding and
+intuition, then applying formal methods to the degree they were
+practical.
+
+To establish the correctness of Raft itself, we developed a formal
+specification for the basic Raft algorithm and a proof of its safety.
+These are described in Section~\ref{correctness:specproof} and can be
+found in full in Appendix~\ref{appendix:correctness}. Although many
+other components are needed for a complete system (specifically,
+membership changes, log compaction, and client interaction), this is an
+important step towards proving Raft correct.
+Section~\ref{correctness:prior} discusses other methods we tried before
+arriving at the current proof.
+
+Our goal is for others to be able to build correct systems using Raft,
+and Section~\ref{correctness:testing} describes approaches to doing so.
+We hypothesize that systems builders will have an easier time developing
+correct implementations if they fully understand Raft; this is another
+reason why understandability is so important. We have tried to be clear
+and precise in describing Raft, but one problem with natural languages
+is that they can easily be imprecise or ambiguous. Thus, we encourage
+system builders to compare their understanding with Raft's formal
+specification, which is completely precise using mathematical language.
+
+\section{Formal specification and proof for basic Raft algorithm}
+\label{correctness:specproof}
+
+We have developed a formal specification and a proof of safety for the
+consensus mechanism described in Chapter~\ref{basicraft}; these can be
+found in Appendix~\ref{appendix:correctness}.
+The formal specification makes the information summarized in
+Figure~\ref{fig:basicraft:cheatsheet} completely precise using the TLA+
+specification language~\cite{Lamport:2002}. It is about \num{450} lines long
+and serves as the subject of the proof.
+It is also useful on its own for anyone implementing
+\name{}.
+
+The formal specification defines the state in a complete Raft cluster
+with an arbitrary number of servers. It defines an initial state
+(\emph{Init}) in which all the servers' logs are empty and defines all
+possible transitions from one state to another (\emph{Next}). There are
+several such transitions: the network may duplicate or drop a message,
+and a server may (under the right conditions) receive a message,
+timeout, restart, become a leader, advance its commit index, receive a
+request from a client, send a RequestVote request, or send an
+AppendEntries request. Each transition includes the conditions under
+which it may occur. For example, a server may only request a vote if it
+is in the candidate state.
+
+The specification models an asynchronous system (it has no notion of
+time) with the following assumptions:
+%
+\begin{itemize}
+%
+\item Messages may take an arbitrary number of steps (transitions) to
+arrive at a server. Sending a message enables a transition to occur (the
+receipt of the message) but with no particular timeliness.
+%
+\item Servers fail by stopping and may later restart from stable storage
+on disk.
+%
+\item The network may reorder, drop, and duplicate messages.
+%
+\end{itemize}
+
+The formal specification is slightly more general than the Raft
+algorithm presented in Chapter~\ref{basicraft}. These differences make
+the formal specification applicable to a wider range of implementations
+and also make some of its state transitions more orthogonal, which
+simplifies the proof. One way in which the formal specification differs
+from the algorithm's description is that it uses message-passing rather
+than RPC. This requires a minor change to the AppendEntries response
+format, but it eliminates the need to pair responses with requests.
+The specification also takes more transitions than most
+implementations would to arrive at the same end state. Since each
+transition is evaluated atomically, this models smaller atomic regions
+in an implementation. There are several examples of this:
+%
+\begin{itemize}
+%
+\item When a server times out, it does not grant itself a vote in the
+same step. Instead, it requests its own vote with an asynchronous
+RequestVote request message. Also, after a candidate receives its final
+vote, it becomes leader in a separate transition.
+%
+\item Leaders do not advance their commit index upon receiving an
+AppendEntries reply. Instead, they do so in a separate transition. This
+improves orthogonality, since a leader that forms a single-server
+cluster can also increase its commit index through the same transition.
+%
+%
+\item On receiving an AppendEntries request, a server either returns to
+the follower state, truncates just the last entry from the end of its
+log, appends just one entry to the end of its log, or replies in one
+atomic step (it can then continue to process the request in further
+steps). Reducing
+this atomic region to just one entry at a time turns out to be important
+for implementations that write to persistent storage. For example, when
+entries span multiple files, most file systems would not allow
+truncating all of the entries atomically. The specification shows that
+implementations may safely truncate the entries back to front, one or
+more at a time.
+%
+\item Servers update their current terms and states upon receiving a
+message with a larger term, then in a different transition they process
+the message.
+%
+\end{itemize}
+%
+On the other hand, the specification is not as general as possible; that
+would harm its understandability. For example, some transitions set two
+variables even when they need not be set atomically.
+
+The proof verifies the State Machine
+Safety property. It is complete (it relies on the specification alone)
+and relatively precise (it is about \num{3500} words long). The main idea
+of the proof is summarized in Section~\ref{basicraft:safety:argument}.
+Most of the lemmas (subproofs) show that an invariant holds for all states that
+are reachable from the initial state in an execution. Using induction,
+they assume the invariant holds in one state and show that it holds in
+every possible next state.
+
+It is often necessary in the proof to refer to variables from prior
+states in the execution. To make this precise, the specification is
+augmented with {\em history variables}; these variables carry
+information about past events forward to states that follow. For
+example, one history variable called $elections$ maintains a record of
+every successful election in the execution, including the complete log
+of each server at the time it cast its vote and the complete log of the
+new leader. The history variables are never read in the specification
+and would not exist at all in a real implementation; they are only
+``accessed'' in the proof.
+
+\section{Discussion of prior verification attempts}
+\label{correctness:prior}
+
+Prior to arriving at the current proof, we tried three other approaches:
+%
+\begin{enumerate}
+%
+\item We first checked an earlier version of Raft in the Murphi model
+checker~\cite{Dill:1992}, which explores the complete state space to
+check for unsafe conditions. The state space quickly expanded to the
+point where Murphi could not finish (in a reasonable amount of
+time), so we had to limit the size of the
+system to at most four entries in each log, four terms, and five
+servers. Murphi found one bug in an early version of Raft, which caused
+log inconsistencies when multiple leaders in a row crashed after
+incompletely committing log entries.
+It also missed an important bug in an early version of Raft,
+where the commitment rule did not account for scenarios like that of
+Figure~\ref{fig:basicraft:oldTermCommit}.
+Murphi most likely missed this bug because of the constrained model size
+(fortunately, David \mazieres{} found it).
+%
+\item We attempted to use the TLA model checker on our specification. We
+found bugs in creating the specification this way but
+abandoned this approach because it did not scale well to larger models.
+%
+\item We also attempted to use the TLA proof
+system~\cite{Cousineau:2012}, which introduces a hierarchical language
+for formally proving properties on TLA specifications and includes a
+machine checker for such proofs. We mechanically proved the Leader
+Completeness Property using the TLA proof system, but this proof relied
+on invariants that have not been mechanically checked (for example, we
+did not prove the type safety of the specification). Unfortunately, we
+found it too tedious and time-consuming to use the TLA proof system at
+the scale of a complete proof. One problem is that TLA is untyped,
+making it more general but also more tedious~\cite{Lamport:1999}.
+%
+\end{enumerate}
+
+We found the tools for correctness to be limited in various ways. In our
+experience, model checking was orders of magnitude easier than
+developing a proof. It essentially requires writing a simplified Raft
+implementation, and then it can be executed and debugged even easier
+than a distributed system (model checkers output a full execution trace
+when any problems occur). Unfortunately, we were not able to verify our
+models with large enough parameters to be fully convinced of their
+correctness.
+
+On the other hand, the Raft proof took about six weeks  of learning
+and thinking before any significant progress was made. Creating a proof
+takes a different skill set from programming and a different sort of
+creativity. The end result has helped build our confidence in Raft's
+safety, but the proof might have bugs. At the scale of the complete Raft
+specification, only a mechanically checked proof could definitively be
+bug-free. We think a machine-checked proof for Raft would be feasible
+with more capable tools (e.g, Coq~\cite{Bertot:2004}), and one has
+recently been created for Multi-Paxos~\cite{Schiper:2014}. However, the
+time investment required would probably be on the order of several
+months.
+
+\section{Building correct implementations}
+\label{correctness:testing}
+
+There are many possible approaches to building a correct implementation
+of Raft. The safest approach is to generate an implementation
+automatically from a proven Raft specification. If the tools are
+correct, this guarantees that there will be no errors in converting the
+specification to an implementation. Recent work has shown this to be
+feasible for Multi-Paxos~\cite{Schiper:2014}, and we expect it to be for
+Raft as well. However, this approach has not been very popular in
+practice so far, perhaps because real-world systems have additional
+needs, such as performance, that are harder to accommodate in the
+generated code.
+
+Without generating an implementation, implementers should strive to
+design their implementations to reduce the possibility of creating bugs,
+and they should test their implementations to reduce the possibility of
+encountering bugs in production. The remainder of this section discusses
+several approaches we think may be effective, though we have not
+evaluated their effectiveness. Readers may also be interested in the
+testing strategy used for Chubby~\cite{Chandra:2007}.
+
+Howard describes a nice design for building ocaml-raft
+correctly~\cite{Howard:2014,impl:ocaml-raft}. It collects all the Raft
+state transitions in one module, while all code for determining when
+transitions should occur is elsewhere. Each transition checks its
+pre-conditions using assertions and has no system-level code
+intermixed, so the code resembles the core of the Raft specification.
+Because all of the code that manipulates the state variables is
+collected in one place, it is easier to verify that state variables
+transition in restricted ways. A separate module invokes the transitions
+at the appropriate times.
+Moreover, ocaml-raft can simulate an
+entire cluster in a single process, which allows it to assert Raft's
+invariants across virtual servers during execution. For example, it can
+check that there is at most one leader per term at runtime. 
+
+For end-to-end testing, Jepsen and Knossos are useful tools that have
+already found bugs in two Raft implementations (in read-only request
+handling)~\cite{Kingsbury:etcdconsul}. Jepsen injects network partitions
+in a distributed system and determines whether the system loses data.
+Knossos analyzes clients' histories of operations against a distributed
+system to look for ways those histories are not linearizable. Together,
+these can be used as powerful end-to-end tests for Raft systems.
+
+Some of the most difficult to find bugs are those that only occur in
+unlikely circumstances such as during leadership changes or partial
+network outages. Thus, testing should aim to increase the likelihood of
+such events. There are three ways to do this.
+
+First, Raft servers can be configured to encourage rare events for
+testing. For example, setting the election timeout very low and the
+heartbeat interval very high will result in more leader changes. Also,
+having servers take snapshots very frequently will result in more
+servers falling behind and needing to receive a snapshot over the
+network.
+
+Second, the environment can be manipulated to encourage rare events for
+testing. For example, servers can be randomly restarted and cluster
+membership changes can be invoked frequently (or continuously) to
+exercise those code paths. Starting other processes to contend for
+servers' resources may expose timing-related bugs, and the network can
+be manipulated in various ways to create events that occur only rarely
+in production, such as:
+%
+\begin{compactitem}
+%
+\item Randomly dropping messages (and varying the frequency of drops
+between servers and links);
+%
+\item Adding random message delays;
+%
+\item Randomly disabling and restoring network links; and
+%
+\item Randomly partitioning the network.
+%
+\end{compactitem}
+
+Third, running the tests for a longer period of time will increase the
+chance of discovering a rare problem. A larger number of machines can
+run tests in parallel. Moreover, entire clusters can run as separate
+processes on a single server to reduce network latency, and disk
+overheads can be reduced by persisting to RAM only (for example, with a
+RAM-based file system such as tmpfs~\cite{tmpfs}). While not entirely
+realistic, these techniques can exercise the implementation aggressively
+in a much shorter period of time.
+
+\section{Conclusion}
+
+We believe our evaluation of Raft's correctness puts it at least on par
+with the algorithms used in most Paxos-based systems. Theoreticians have
+typically proven the safety of only narrow specifications of Paxos, but
+practitioners deviate from these specifications and extend their systems
+significantly. The formal specification for Raft is a nearly complete
+implementation of the basic Raft algorithm presented in
+Chapter~\ref{basicraft}, so the fraction of a fully elaborated Raft
+algorithm that has been proven safe is fairly large. We leave specifying
+and proving cluster membership, log compaction, and client interaction
+to future work, along
+with liveness and availability properties of the basic Raft algorithm.

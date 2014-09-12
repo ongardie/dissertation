@@ -1,0 +1,834 @@
+\chapter{Safety proof and formal specification}
+\label{appendix:correctness}
+
+This appendix includes a formal specification and a proof of safety for
+the basic Raft algorithm presented in Chapter~\ref{basicraft}. The
+specification and proof are introduced in Chapter~\ref{correctness}.
+
+The formal specification makes the information summarized in
+Figure~\ref{fig:basicraft:cheatsheet} completely precise using the TLA+
+specification language~\cite{Lamport:2002}. It serves as the subject of
+the proof and is a useful reference for implementing Raft.
+
+The proof shows that the specification preserves the State Machine
+Safety property. The main idea of the proof is summarized in
+Section~\ref{basicraft:safety:argument}, but the detailed proof is much
+more precise. We found the proof useful in understanding Raft's safety
+at a deeper level, and others may find value in this as well. However,
+the proof is fairly long and difficult for humans to verify and
+maintain; we believe it to be basically correct, but it might include
+errors or omissions. At this scale, only a machine-checked proof could
+definitively be error-free.
+
+\section{Conventions}
+The specification uses the syntax and semantics of the TLA+ language
+version~2~\cite{Lamport:2002}.
+The proof uses the same syntax and semantics but
+with the following minor allowances for convenience:
+\begin{itemize}
+\item As in TLA+, $foo'$ has a specific meaning: the value of variable
+$foo$ in the next state of the system.
+
+\item Define $\langle index, term \rangle \in log$ iff \\
+      $Len(log) \geq index \sland log[index].term = term$.
+
+\item The symbol $\cat$ is used for concatenation of logs and entries.
+
+\item Values in log entries are not included, since a
+value is attached to a particular $\langle index, term \rangle$, and
+those uniquely identify a log entry.
+\end{itemize}
+
+\section{Specification}
+
+This section provides a complete, formal description of the Raft
+algorithm.
+A copy of the TLA+ source file can is available at~\cite{raft.tla}.
+
+\input{proof/rafttla}
+
+\renewcommand\A{\forall\ }
+\renewcommand\E{\exists\ }
+\renewcommand\implies{\Rightarrow}
+
+\section{Proof}
+
+\begin{lemma} % currentTerm[i] monotonically increases
+\label{appendix:correctness:currenttermmonotonic}
+Each server's $currentTerm$ monotonically increases:
+\begin{tabbing}
+\tab\=\+
+$\A i \in Server : $ \\
+\tab\=\+
+$currentTerm[i] \leq currentTerm'[i]$
+\end{tabbing}
+\end{lemma}
+
+\begin{proof}
+This follows immediately from the specification.
+\end{proof}
+
+\begin{lemma} % at most one leader per term
+\label{appendix:correctness:olpt}
+There is at most one leader per term:
+\begin{tabbing}
+\tab\=\+
+$\A e,f \in elections : $ \\
+\tab\=\+
+$e.eterm = f.eterm \implies e.eleader = f.eleader$
+\end{tabbing}
+This is the Election Safety property of
+Figure~\ref{fig:basicraft:properties}.
+\end{lemma}
+
+\begin{sketch}
+It takes votes from a quorum to become leader, voters may only vote
+once per term, and any two quorums overlap.
+\end{sketch}
+
+\begin{proof}\ 
+\begin{enumerate}
+\item Consider two elections, $e$ and $f$, both members of $elections$,
+where $e.eterm = f.eterm$.
+\item $e.evotes \in Quroum$ and $f.evotes \in Quorum$,
+since this is a necessary condition for members of $elections$.
+\item Let $voter$ be an arbitrary member of $e.evotes \cap
+f.evotes$. Such a member must exist since any two quorums overlap.
+\item Once $voter$ casts a vote for $e.eleader$ in $e.eterm$, it can not
+cast a vote for a different server in $e.eterm$ (the specification ensures
+this: once it increments its $currentTerm$, it can never vote again for
+the same server (Lemma~\ref{appendix:correctness:currenttermmonotonic});
+and until then, it safely retains its vote information).
+\item $e.eleader = f.eleader$, since $voter$ voted for $e.eleader$ and
+$voter$ voted for $f.eleader$ in $e.eterm=f.eterm$.
+\end{enumerate}
+\end{proof}
+
+\begin{lemma} % leader only appends
+\label{appendix:correctness:leaderlogmonotonic}
+A leader's log monotonically grows during its term:
+\begin{tabbing}
+\tab\=\+
+$\A e \in elections :$ \\
+\tab\tab\=\+
+$currentTerm[e.leader] = e.term \implies$ \\
+\tab\tab\=\+
+$\A index \in 1..Len(log[e.leader]) :$ \\
+\tab\tab\=\+
+$log'[e.leader][index] = log[e.leader][index]$
+\end{tabbing}
+This is the Leader Append-Only property of
+Figure~\ref{fig:basicraft:properties}.
+\end{lemma}
+
+\begin{sketch}
+As a leader, server $i$ only appends to its log; $i$ won't ever get an
+AppendEntries request from some other server for the same term, since
+there is at most one leader per term; and $i$ rejects AppendEntries
+requests for other terms until increasing its own term.
+\end{sketch}
+
+\begin{proof}\
+\begin{enumerate}
+\item Three variables are involved in the goal: $elections$,
+$currentTerm$, and $log$. We consider the transitions that change each
+of these variables in turn; otherwise, the invariant trivially holds by the
+inductive hypothesis.
+\item When a new election is added to $elections$ (a history variable
+which maintains information about all successful elections), the $log$
+of the leader is not changed in the same step ($log'[e.leader] =
+log[e.leader]$), so the invariant is maintained.
+\item $currentTerm[e.leader]$ monotonically increases by
+Lemma~\ref{appendix:correctness:currenttermmonotonic}, so once $e.leader$ moves to a new
+term, it will trivially satisfy the invariant forever after.
+\item \emph{log} changes either from client requests or AppendEntries
+requests:
+\begin{enumerate}
+\item Case: client request:
+\begin{enumerate}
+\item By the specification, the leader only appends an entry to its log,
+which maintains the invariant.
+\end{enumerate}
+\item Case: AppendEntries request:
+\begin{enumerate}
+\item Only servers with $state[i] = Leader$ can send AppendEntries
+requests for their $currentTerm$.
+\item By Lemma~\ref{appendix:correctness:olpt}, $e.leader$ is the only
+server which can ever be leader for $e.term$.
+\item Servers don't send themselves AppendEntries requests (see
+specification).
+\item $e.leader$ will process no AppendEntries requests while its term
+is $e.term$.
+\end{enumerate}
+\end{enumerate}
+\end{enumerate}
+\end{proof}
+
+\begin{lemma} % <index, term> identifies log prefix
+\label{appendix:correctness:itip}
+An $\langle index, term \rangle$ pair identifies a log prefix:
+\begin{tabbing}
+\tab\=\+
+$\A l,m \in allLogs : $ \\
+\tab\=\+
+$\A \langle index, term \rangle \in l :$ \\
+\tab\=\+
+$\langle index, term \rangle \in m \implies$ \\
+\tab\=\+
+$\A pindex \in 1..index : $\\
+\tab\tab\=\+
+$l[pindex] = m[pindex]$
+\end{tabbing}
+This is the Log Matching property of
+Figure~\ref{fig:basicraft:properties}.
+\end{lemma}
+
+\begin{sketch}
+Only leaders create entries, and they assign the new entries term
+numbers that will never be assigned again by other leaders (there's at
+most one leader per term).
+Moreover, the consistency check in AppendEntries guarantees that when
+followers accept new entries, they do so in a way that's consistent with
+the leader's log at the time it sent the entries.
+\end{sketch}
+
+\begin{assertion}
+If $p$ is a prefix of some log $l \in allLogs$, then $allLogs' = allLogs
+\cup \{p\}$ maintains the invariant (the statement in the lemma).
+\begin{enumerate}
+\item This follows immediately from the invariant, since $p$'s entries
+match $l$'s entries, and $p$ contributes no additional entries.
+\end{enumerate}
+\end{assertion}
+\vspace{-6ex}
+
+\begin{proof}[Proof by induction on an execution]\
+\begin{enumerate}
+\item Initial state: all of the servers' logs are empty, so $allLogs =
+{\langle \rangle}$, and the invariant trivially holds.
+\item Inductive step: logs change in one of the following ways:
+\begin{enumerate}
+\item Case: a leader adds one entry (client request)
+\begin{enumerate}
+\item By the inductive hypothesis, $log[leader] \in allLogs$.
+\item The $\langle index, term \rangle$ of the new entry cannot exist
+in any other entry in any log in $allLogs$,
+since there's only one leader per term
+(Lemma~\ref{appendix:correctness:olpt}) and leaders
+only append to their logs
+(Lemma~\ref{appendix:correctness:leaderlogmonotonic}).
+\item Then $allLogs' = allLogs \cup \{log[leader] \cat \langle index, term
+\rangle\}$ maintains the invariant.
+\end{enumerate}
+
+\item Case: a follower removes one entry (AppendEntries request $m$)
+\begin{enumerate}
+\item The invariant still holds, since $log'[follower]$ is a
+prefix of $log[follower]$ (by the Assertion above).
+\end{enumerate}
+
+\item Case: a follower adds one entry (AppendEntries request $m$)
+\begin{enumerate}
+\item $m.mlog$ is a copy of the leader's log at the time the
+leader created the AppendEntries request. 
+\item $m.mlog \in allLogs$ by definition of $allLogs$.
+\item In the two cases below, we show that $log'[follower]$ is a prefix
+of $m.mlog$.
+\item Case: $m.mprevLogIndex = 0$
+\begin{enumerate}
+\item $m.mentries$ is a prefix of $m.mlog$.
+\item $log[follower]$ is empty, as a necessary condition for accepting
+the request (the specification separates transitions for removing
+a conflicting entry, replying when there is no longer any change to
+make, and appending an entry).
+\item $log'[follower] = m.mentries$ upon accepting the request,
+which is a prefix of $m.mlog$.
+\end{enumerate}
+\item Case: $m.mprevLogIndex > 0$
+\begin{enumerate}
+\item 
+$start \cat \langle m.mprevLogIndex, m.mprevLogTerm \rangle
+\cat m.mentries$
+is a prefix of $m.mlog$,
+where $start$ is some (possibly empty) log prefix.
+\item The follower accepts the request by assumption, so its log
+contains the entry \\$\langle m.mprevLogIndex, m.mprevLogTerm \rangle$.
+\item By the inductive hypothesis, $log[follower]$
+contains the prefix \\
+$start \cat \langle m.mprevLogIndex, m.mprevLogTerm \rangle$.
+\item $log'[follower] = start \cat \langle m.mprevLogIndex,
+m.mprevLogTerm \rangle \cat m.mentries$ \\
+upon accepting the request, which is a prefix of $m.mlog$.
+\end{enumerate}
+\item  Because $log'[follower]$ is a prefix of $m.mlog$, the invariant
+is maintained (by the Assertion above).
+\end{enumerate}
+\end{enumerate}
+\end{enumerate}
+\end{proof}
+
+\begin{lemma} % follower appends entry becomes prefix
+\label{appendix:correctness:followerprefix}
+When a follower appends an entry to its log, its log after
+the append is a prefix of the
+leader's log at the time the leader sent the AppendEntries request:
+\begin{tabbing}
+\tab\=\+
+$\A i \in Server :$ \\
+\tab\tab\=\+
+$state[i] \neq Leader \land Len(log'[i]) > Len(log[i]) \implies $ \\
+\tab\tab\=\+
+$\E m \in \domain messages : $ \\
+\tab\tab\=\+
+$\sland m.mtype = AppendEntriesRequest $ \\
+$\sland \A index \in 1..Len(log'[i]) : $ \\
+\tab\tab\=\+
+$log'[i][index] = m.mlog[index]$
+\end{tabbing}
+This restates an argument from the proof of
+Lemma~\ref{appendix:correctness:itip} that is useful in the proofs of
+other lemmas. (The argument is difficult to make before
+Lemma~\ref{appendix:correctness:itip}, since that lemma's inductive
+hypothesis is key; however, the proof for this lemma follows easily from
+Lemma~\ref{appendix:correctness:itip}.)
+\end{lemma}
+
+\begin{sketch}
+The new entry that the follower appends to its log was also present in
+the leader's log. Thus, by Lemma~\ref{appendix:correctness:itip}, the
+follower's new log is a prefix of what was the leader's log.
+\end{sketch}
+
+\begin{proof}
+Logs change in one of the following ways:
+\begin{enumerate}
+\item Case: a leader adds one entry (client request). This invariant
+only applies to non-leaders.
+\item Case: a follower removes one entry (AppendEntries request).
+This invariant only affects logs that grow in length.
+\item Case: a follower adds one entry (AppendEntries request $m$):
+\begin{enumerate}
+\item $m.mlog$ is a copy of the leader's log at the time the
+leader created the AppendEntries request.
+\item Thus, $m.mlog \in allLogs$.
+\item $log'[i] \in allLogs$ by definition of $allLogs$.
+\item $m.mentries$, the entry being added, is the last entry in
+$log'[i]$. (This extends to multiple entries for implementations that
+batch entries together.)
+\item $m.mentries \in m.mlog$
+\item By Lemma~\ref{appendix:correctness:itip},
+the index and term of $m.mentries$ uniquely identifies a prefix of
+$m.mlog$ equal to $log'[i]$.
+\end{enumerate}
+\end{enumerate}
+\end{proof}
+
+\begin{lemma} % current term >= log terms
+\label{appendix:correctness:currenttermmax}
+A server's current term is always at least as large as the terms in
+its log:
+\begin{tabbing}
+\tab\=\+
+$\A i \in Server :$ \\
+\tab\tab\=\+
+$\A \langle index, term \rangle \in log[i] : $ \\
+\tab\tab\=\+
+$term \leq currentTerm[i]$
+\end{tabbing}
+\end{lemma}
+
+\begin{sketch}
+Servers' current terms monotonically increase.
+When leaders create new entries, they assign them their current term.
+And when followers accept new entries from a leader, their current term
+agrees with the
+leader's term at the time it sent the entries.
+\end{sketch}
+
+\begin{proof}[Proof by induction on an execution]\
+\begin{enumerate}
+\item Initial state: all logs are empty, so the invariant trivially holds.
+\item Inductive step: $currentTerm[i]$ changes:
+\begin{enumerate}
+\item By Lemma~\ref{appendix:correctness:currenttermmonotonic},
+$currentTerm'[i] \geq currentTerm[i]$, so the invariant is maintained.
+\end{enumerate}
+\item Inductive step: logs change in one of the following ways:
+\begin{enumerate}
+\item Case: a leader adds one entry (client request):
+\begin{enumerate}
+\item By the inductive hypothesis, all entries in $log[i]$
+have \\ $term \leq currentTerm[i]$.
+\item The new entry's term is $currentTerm[i]$.
+\item Thus, all entries in $log'[i]$ satisfy the invariant.
+\end{enumerate}
+\item Case: a follower removes one entry (AppendEntries request)
+\begin{enumerate}
+\item The invariant still holds, since only the length of the log
+decreased.
+\end{enumerate}
+\item Case: a follower adds one entry (AppendEntries request $m$):
+\begin{enumerate}
+\item By the inductive hypothesis, when the leader created the request,
+its current term was at least as large as the term of every entry in
+its log: \\
+$\A \langle index, term \rangle \in m.mlog : term \leq m.mterm$
+\item $log'[i]$ is a prefix of $m.mlog$ by
+Lemma~\ref{appendix:correctness:followerprefix}.
+\item As a necessary condition for accepting the request,
+$currentTerm[i] = m.mterm$.
+\item Then $currentTerm[i]$ is at least as large as the term in
+every entry in $log'[i]$, and the invariant is maintained.
+\end{enumerate}
+\end{enumerate}
+\end{enumerate}
+\end{proof}
+
+\begin{lemma} % Log terms are monotonic
+\label{appendix:correctness:monotoniclogterms}
+The terms of entries grow monotonically in each log:
+\begin{tabbing}
+\tab\=\+
+$\A l \in allLogs :$ \\
+\tab\tab\=\+
+$\A index \in 1..(Len(l) - 1) : $ \\
+\tab\tab\=\+
+$l[index].term \leq l[index + 1].term$
+\end{tabbing}
+\end{lemma}
+
+\begin{sketch}
+A leader maintains this by assigning new entries its current term, which
+is always at least as large as the terms in its log.
+When followers accept new entries, they are consistent with the leader's
+log at the time it sent the entries.
+\end{sketch}
+
+\begin{proof}[Proof by induction on an execution]\
+\begin{enumerate}
+\item Initial state: all logs are empty, so the invariant holds.
+\item Inductive step: logs change in one of the following ways:
+\begin{enumerate}
+\item Case: a leader adds one entry (client request)
+\begin{enumerate}
+\item The new entry's term is $currentTerm[leader]$
+\item $currentTerm[leader]$ is at least as large as the term of any
+entry in $log[leader]$, by Lemma~\ref{appendix:correctness:currenttermmax}.
+\end{enumerate}
+\item Case: a follower removes one entry (AppendEntries request)
+\begin{enumerate}
+\item The invariant still holds, since only the length of the log
+decreased.
+\end{enumerate}
+\item Case: a follower adds one entry (AppendEntries request $m$)
+\begin{enumerate}
+\item $log'[follower]$ is a prefix of $m.mlog$
+(by Lemma~\ref{appendix:correctness:followerprefix}).
+\item $m.mlog \in allLogs$
+\item By the inductive hypothesis, the terms in $m.mlog$ monotonically
+grow, so the terms in $log'[follower]$ monotonically grow.
+\end{enumerate}
+\end{enumerate}
+\end{enumerate}
+\end{proof}
+
+\begin{definition} % committed at term t
+An entry $\langle index, term \rangle$ is \textbf{committed at term $t$} if
+it is present in every leader's log following $t$:
+\begin{tabbing}
+\tab\=\+
+$committed(t) \is \{$\=\+$\langle index, term \rangle : $ \\
+\tab\=\+
+        $\A election \in elections :$\\
+\tab\=\+
+            $election.eterm > t \implies$ \\
+\tab\=\+
+                $\langle index, term \rangle \in election.elog \}$
+\end{tabbing}
+\end{definition}
+
+\begin{definition} % immediately committed
+An entry $\langle index, term \rangle$ is \textbf{immediately committed}
+if it is acknowledged by a quorum (including the leader) during $term$.
+Lemma~\ref{appendix:correctness:immcommittedlemma} shows that these
+entries are committed at $term$.
+\begin{tabbing}
+\tab\=\+
+$immediatelyCommitted \is \{$\=\+$\langle index, term \rangle \in anyLog : $ \\
+$\sland anyLog \in allLogs $ \\
+$\sland \E leader \in Server,\ subquorum \in \SUBSET Server: $ \\
+\tab\tab\=\+
+    $\sland subquorum \cup \{leader\} \in Quorum$ \\
+    $\sland \A i \in subquorum :$ \\
+\tab\tab\=\+
+        $\E m \in messages :$ \\
+\tab\=\+
+             $\sland m.mtype = AppendEntriesResponse$ \\
+             $\sland m.msource = i$ \\
+             $\sland m.mdest = leader$ \\
+             $\sland m.mterm = term$ \\
+             $\sland m.mmatchIndex \geq index\}$ \\
+\end{tabbing}
+\end{definition}
+
+\begin{lemma} % Immediately committed entries are committed
+\label{appendix:correctness:immcommittedlemma}
+{\em Immediately committed} entries are $committed$:
+\begin{tabbing}
+\tab\=\+
+$\A \langle index, term \rangle \in immediatelyCommitted : $ \\
+\tab\tab $\langle index, term \rangle \in committed(term)$
+\end{tabbing}
+Along with Lemma~\ref{appendix:correctness:prefixcommittedlemma},
+this is the Leader Completeness property of
+Figure~\ref{fig:basicraft:properties}.
+
+\end{lemma}
+
+\begin{sketch}
+See Section~\ref{basicraft:safety:argument}.
+\end{sketch}
+
+\begin{proof} \
+
+\begin{enumerate}
+\item Consider an entry $\langle index, term \rangle$ that is {\em
+immediately committed}.
+
+\item Define
+\begin{tabbing}
+\tab\=\+
+$Contradicting \is \{$\=\+$election \in elections : $\\
+\tab\=\+
+$\sland election.eterm > term $ \\
+$\sland \langle index, term \rangle \notin election.elog\}$
+\end{tabbing}
+
+\item Let $election$ be an element in $Contradicting$ with a minimal $term$
+field. That is, \\ $\A e \in Contradicting : election.eterm \leq e.eterm$.
+\\
+If more than one election has the same term, choose the earliest one.
+(The specification does not allow this to happen, but it is safe for a
+leader to step down and become leader again in the same term.)
+
+\item It suffices to show a contradiction,
+which implies $Contradicting = \phi$.
+
+\item Let $voter$ be any server that both votes in $election$ and
+contains $\langle index, term \rangle$ in its log during $term$ (either it
+acknowledges the entry as a follower or it was leader).
+Such a server must exist since:
+\begin{enumerate}
+\item A quorum of servers voted in $election$ for it to succeed.
+\item A quorum contains $\langle index, term \rangle$ in its log during
+$term$, since $\langle index, term \rangle$ is immediately committed.
+\item Any two quorums overlap.
+\end{enumerate}
+
+\item Let $voterLog \be election.evoterLog[voter]$, the voter's log at
+the time it cast its vote.
+
+\item The voter contains the entry when it cast its vote during
+$election.eterm$. That is, \\ $\langle index, term \rangle \in voterLog$:
+
+\begin{enumerate}
+\item $\langle index, term \rangle$ was in the voter's log during
+$term$.
+\item The voter must have stored the entry in $term$ before voting in
+$election.eterm$, since:
+\begin{enumerate}
+\item $election.eterm > term$.
+\item The voter rejects requests with terms smaller than its current
+term, and its current term monotonically increases
+(Lemma~\ref{appendix:correctness:currenttermmonotonic}).
+\end{enumerate}
+\item The voter couldn't have removed the entry before casting its
+vote:
+\begin{enumerate}
+\item Case: No $AppendEntriesRequest$ with $mterm < term$ removes the entry from the
+voter's log, since $currentTerm[voter] \geq term$ upon storing the
+entry (by Lemma~\ref{appendix:correctness:currenttermmax}),
+and the voter rejects requests with terms smaller than
+\\
+$currentTerm[voter]$.
+\item Case: No $AppendEntriesRequest$ with $mterm = term$ removes the entry from the
+voter's log, since:
+\begin{enumerate}
+\item There is only one leader of $term$.
+\item The leader of $term$ created and therefore
+contains the entry (Lemma~\ref{appendix:correctness:leaderlogmonotonic}).
+\item The leader would not send any conflicting
+requests to $voter$ during $term$.
+\end{enumerate}
+\item Case: No $AppendEntriesRequest$ with $mterm > term$ removes the entry from the
+voter's log, since:
+\begin{enumerate}
+\item Case: $mterm > election.eterm$:\\
+This can't happen, since
+$currentTerm[voter] > election.eterm$ would have prevented the voter from
+voting in $term$.
+\item Case: $mterm = election.eterm$:\\
+Since there is at most one leader per term
+(Lemma~\ref{appendix:correctness:olpt}), this request would have to come
+from $election.eleader$ as a result of an earlier election in the same
+term ($election.eterm$).
+\\
+Because a leader's log grows monotonically during its term (by
+Lemma~\ref{appendix:correctness:leaderlogmonotonic}),
+the leader could not have had $\langle index, term \rangle$ in
+its log at the start of its term.
+\\
+Then there exists an earlier election with the same term in $Contradicting$;
+this is a contradiction.
+\item Case $mterm < election.eterm$:\\
+The leader of $mterm$ must have contained the entry (otherwise its
+election would also be $Contradicting$ but have a smaller term than
+$election$, which is a contradiction).
+Thus, the leader of $mterm$ could not send any conflicting entries to
+the voter for this index,
+nor could it send
+any conflicting entries for prior indexes: that it has this entry
+implies that it has the entire prefix before it
+(Lemma~\ref{appendix:correctness:itip}).
+\end{enumerate}
+\end{enumerate}
+\end{enumerate}
+
+\item The log comparison during elections states the following,
+since $voter$ granted its vote during $election$:
+\begin{tabbing}
+\tab\=\+
+$\slor LastTerm(election.elog) > LastTerm(voterLog)$ \\
+$\slor$\=\+$\sland LastTerm(election.elog) = LastTerm(voterLog)$ \\
+            $\sland Len(election.elog) \geq Len(voterLog)$
+\end{tabbing}
+
+In the following two steps, we take each of these cases in turn and show a
+contradiction.
+
+\item Case: $LastTerm(election.elog) = LastTerm(voterLog)$ and \\
+            $Len(election.elog) \geq Len(voterLog)$
+\begin{enumerate}
+\item The leader of $LastTerm(voterLog)$ monotonically grew its log
+during its term (by
+Lemma~\ref{appendix:correctness:leaderlogmonotonic}).
+\item The same leader must have had $election.elog$ as its log at some
+point, since it created the last entry.
+\item Thus, $voterLog$ is a prefix of $election.elog$.
+\item Then $\langle index, term \rangle \in election.elog$,
+since $\langle index, term \rangle \in voterLog$.
+\item But $election \in Contradicting$ implies that
+$\langle index, term \rangle \notin election.elog$.
+\end{enumerate}
+
+\item Case: $LastTerm(election.elog) > LastTerm(voterLog)$
+\begin{enumerate}
+\item $LastTerm(voterLog) \geq term$,
+since $\langle index, term \rangle \in voterLog$
+and terms in logs grow monotonically (Lemma~\ref{appendix:correctness:monotoniclogterms}).
+
+\item $election.eterm > LastTerm(election.elog)$
+since servers increment their $currentTerm$ when starting an election,
+and Lemma~\ref{appendix:correctness:currenttermmax} states that a server's $currentTerm$ is
+at least as large as the terms in its log.
+
+\item Let $prior$ be the election in $elections$ with $prior.eterm =
+LastTerm(election.elog)$.
+Such an election must exist since $LastTerm(election.elog) > 0$
+and a server must win an election before creating an entry.
+
+\item By transitivity, we now have the following inequalities:
+\begin{tabbing}
+\tab\=\+
+$term \leq$ \\
+\tab\=\+
+$LastTerm(voterLog) <$ \\
+\tab\=\+
+$LastTerm(election.elog) = prior.eterm <$ \\
+\tab\=\+
+$election.eterm$
+\end{tabbing}
+
+\item $\langle index, term \rangle \in prior.elog$, since $prior \notin
+Contradicting$ ($election$ was assumed to have the lowest term of any
+election in $Contradicting$, and $prior.eterm < election.eterm$).
+\item $prior.elog$ is a prefix of $election.elog$ since:
+\begin{enumerate}
+\item $prior.eleader$ creates entries with $prior.eterm$ by appending them to
+its log, which monotonically grows during $prior.eterm$ from $prior.elog$.
+\item Thus, any entry with term $prior.eterm$ must follow $prior.elog$
+in all logs (by Lemma~\ref{appendix:correctness:itip}).
+\item $LastTerm(election.elog) = prior.eterm$
+\end{enumerate}
+\item $\langle index, term \rangle \in election.elog$
+\item This is a contradiction, since $election.elog$ was assumed to not
+contain the committed entry ($election \in Contradicting$).
+\end{enumerate}
+\end{enumerate}
+\end{proof}
+
+\begin{definition} % prefix committed at term t
+An entry $\langle index, term \rangle$ is \textbf{prefix committed at term $t$}
+if there is another entry that is {\em committed at term $t$} following it in some log.
+Lemma~\ref{appendix:correctness:prefixcommittedlemma} shows that these entries are {\em
+committed at term $t$}.
+\begin{tabbing}
+\tab\=\+
+$prefixCommitted(t) \is \{$\=\+$\langle index, term \rangle \in anyLog : $ \\
+$\sland anyLog \in allLogs$ \\
+$\sland \E \langle rindex, rterm \rangle \in anyLog : $ \\
+\tab\tab\=\+
+        $\sland index < rindex$ \\
+        $\sland \langle rindex, rterm \rangle \in committed(t)\}$ \\
+\end{tabbing}
+\end{definition}
+
+
+\begin{lemma}
+\label{appendix:correctness:prefixcommittedlemma}
+{\em Prefix committed} entries are $committed$ in the same term:
+\begin{tabbing}
+\tab $\A t : prefixCommitted(t) \subseteq committed(t)$
+\end{tabbing}
+Along with Lemma~\ref{appendix:correctness:immcommittedlemma},
+this is the Leader Completeness property of
+Figure~\ref{fig:basicraft:properties}.
+\end{lemma}
+
+\begin{sketch}
+If an entry is committed, it identifies a prefix of a log in which every
+entry is committed, since those entries will also be present in every
+future leader's log.
+\end{sketch}
+
+\begin{proof} \ 
+
+\begin{enumerate}
+\item Consider an arbitrary entry
+$\langle index, term \rangle \in prefixCommitted(t)$.
+\item There exists an entry $\langle rindex, rterm \rangle \in
+committed(t)$ following $\langle index, term \rangle$ in some log,
+by definition of $prefixCommitted(t)$.
+\item $\langle rindex, rterm \rangle$ uniquely identifies the log prefix
+containing $\langle index, term \rangle$ 
+(Lemma~\ref{appendix:correctness:itip}).
+\item Every leader following $t$ contains $\langle index, term \rangle$,
+since every leader following $t$ contains $\langle rindex, rterm \rangle$.
+\item $\langle index, term \rangle \in committed(t)$
+by definition of $committed(t)$.
+
+\end{enumerate}
+\end{proof}
+
+\begin{theorem}
+\label{appendix:correctness:onlycommittedapplied}
+Servers only apply entries that are $committed$ in their current term:
+\begin{tabbing}
+\tab\=\+
+$\A i \in Server : $ \\
+\tab\=\+
+$\sland commitIndex[i] \leq Len(log[i])$ \\
+$\sland \A \langle index, term \rangle \in log[i] : $ \\
+\tab\tab\tab\=\+
+$index \leq commitIndex[i] \implies $ \\
+$\tab \langle index, term \rangle \in committed(currentTerm[i])$
+\end{tabbing}
+This is equivalent to the State Machine Safety property of
+Figure~\ref{fig:basicraft:properties}. (The bound on the commit index is
+needed to strengthen the inductive hypothesis.)
+\end{theorem}
+
+\begin{sketch}
+A leader only advances its $commitIndex$ to cover entries that are
+immediately committed or prefix committed. Followers update their
+$commitIndex$ from the leader's only when they have a prefix of the
+leader's log.
+\end{sketch}
+
+\begin{proof}[Proof by induction on an execution]\
+\begin{enumerate}
+
+\item Initial state: trivially holds for empty logs (and
+$commitIndex[i]$ is initialized to 0).
+
+\item Inductive step: the set of entries committed at $currentTerm[i]$
+changes:
+\begin{enumerate}
+\item Once an entry is committed at $currentTerm[i]$, all leaders
+of subsequent terms will have the entry (by the definition of $committed$).
+\item Thus, the set of committed entries at $currentTerm[i]$
+monotonically grows.
+\end{enumerate}
+
+\item Inductive step: $commitIndex[i]$ changes:
+\begin{enumerate}
+\item When $commitIndex[i]$ decreases (if implementations allow this to
+happen), the inductive hypothesis suffices
+to show the invariant holds.
+\item When $commitIndex[i]$ increases, it covers entries present in
+$i$'s log that are committed:
+\begin{enumerate}
+\item Case: follower completes accepting AppendEntries request $m$:
+\begin{enumerate}
+\item Upon processing the request, the follower's log is a prefix of a
+prior version of the leader's log, $m.mlog$ (by
+Lemma~\ref{appendix:correctness:followerprefix}).
+\item Every entry up through $commitIndex'[i]$ in $m.mlog$ is committed
+by the inductive hypothesis (they were marked committed in the leader's
+log when it sent the request).
+\end{enumerate}
+\item Case: leader $i$ processes AppendEntries response:
+\begin{enumerate}
+\item If the leader sets a new $commitIndex$, the conditions in the
+specification
+ensure that $commitIndex'[i] \in immediatelyCommitted$.
+\item Every entry in the leader's log with index up to $commitIndex'[i]$
+is prefix committed at $currentTerm[i]$.
+\end{enumerate}
+\end{enumerate}
+\end{enumerate}
+
+\item Inductive step: $currentTerm[i]$ changes:
+\begin{enumerate}
+\item By Lemma~\ref{appendix:correctness:currenttermmonotonic},
+$currentTerm'[i] > currentTerm[i]$.
+\item $committed(currentTerm[i]) \subseteq
+committed(currentTerm'[i])$ by the definition of \\ $committed$.
+\item Thus, the inductive hypothesis suffices to show the invariant
+holds.
+\end{enumerate}
+
+\item Inductive step: logs change in one of the following ways:
+\begin{enumerate}
+\item Case: a leader adds one entry (client request):
+\begin{enumerate}
+\item Newly created entries are not marked committed, so the invariant
+holds.
+\end{enumerate}
+\item Case: a follower removes one entry (AppendEntries request $m$):
+\begin{enumerate}
+\item Case: the removed entry was not marked committed on the follower:
+\\ The inductive hypothesis suffices to show the invariant holds.
+\item Case: the removed entry was marked committed on the follower:
+\begin{enumerate}
+\item $m.mterm = currentTerm[i]$, since the follower accepted the
+request.
+\item The removed entry is not in $m.mlog$, since it conflicts with the
+request.
+\item The removed entry is not present in $m.msource$'s log at the start
+of its term (by Lemma~\ref{appendix:correctness:leaderlogmonotonic}).
+\item The election for $m.mterm$ did not contain the removed entry.
+\item The removed entry is not committed at $currentTerm[i]$.
+\item This contradicts the inductive hypothesis; this case cannot occur.
+\end{enumerate}
+\end{enumerate}
+\item Case: a follower adds one entry (AppendEntries request $m$):
+\begin{enumerate}
+\item Case: the new entry is not marked committed on the follower:\\
+The inductive hypothesis suffices to show the invariant holds.
+\item Case: the new entry is marked committed on the follower:\\
+$commitIndex[i]$ must increase (which was already handled above).
+\end{enumerate}
+\end{enumerate}
+\end{enumerate}
+\end{proof}
