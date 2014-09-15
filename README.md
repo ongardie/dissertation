@@ -17,13 +17,14 @@ different medium or to copy sections for use in other documents (per the
 
 Several pre-built PDFs are also included:
 
- - [book.pdf](book.pdf): formatted for a printed book
+ - [book.pdf](book.pdf?raw=true): formatted for a printed book
    (8.5x11" pages, bigger inside margins for binding, black hyperlinks)
- - [online.pdf](online.pdf): formatted for normal digital or print use
+ - [online.pdf](online.pdf?raw=true): formatted for normal digital or print use
    (8.5x11" pages, consistent margins on all pages, blue hyperlinks)
- - [online-trim.pdf](online-trim.pdf): formatted for digital viewing
+ - [online-trim.pdf](online-trim.pdf?raw=true): formatted for digital viewing
    (6.6x9.35" pages, minimal margins, blue hyperlinks)
- - [stanford.pdf](stanford.pdf): exact file distributed by Stanford University
+ - [stanford.pdf](stanford.pdf?raw=true): exact file distributed by
+   Stanford University
    (similar to `online.pdf`; copyright, signature, and preface pages differ)
 
 All of these use the same page numbers starting at page 1, though `book.pdf` has
