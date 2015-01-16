@@ -3,19 +3,7 @@ Theory and Practice*, published by Stanford University in 2014. The
 dissertation PDFs and the dissertation sources are licensed under the Creative
 Commons Attribution license, as described in the [LICENSE](LICENSE) file.
 
-
-The source materials for the dissertation are made available here in the hopes
-that they might be useful, for example, to reformat the dissertation for a
-different medium or to copy sections for use in other documents (per the
-[LICENSE](LICENSE)). It requires the following to build:
-
- - GNU make
- - pdflatex
- - bibtex
- - Inkscape (to convert SVG images and layers from SVG images to PDF format)
-
-
-Several pre-built PDFs are also included:
+Several pre-built PDFs are included:
 
  - [book.pdf](book.pdf?raw=true): formatted for a printed book
    (8.5x11" pages, bigger inside margins for binding, black hyperlinks)
@@ -29,3 +17,13 @@ Several pre-built PDFs are also included:
 
 All of these use the same page numbers starting at page 1, though `book.pdf` has
 an additional blank page before the introduction (page xviii).
+
+The source materials for the dissertation are made available here in the hopes
+that they might be useful, for example, to reformat the dissertation for a
+different medium or to copy sections for use in other documents (per the
+[LICENSE](LICENSE)). It requires the following to build:
+
+ - GNU make
+ - pdflatex
+ - bibtex
+ - Inkscape (to convert SVG images and layers from SVG images to PDF format)
