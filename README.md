@@ -1,4 +1,4 @@
-# Consensus: Briding Theory and Practice
+# Consensus: Bridging Theory and Practice
 
 This repository contains Diego Ongaro's PhD dissertation, *Consensus: Bridging
 Theory and Practice*, published by Stanford University in 2014. The
