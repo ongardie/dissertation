@@ -40,6 +40,10 @@ different medium or to copy sections for use in other documents (per the
 
 - There's an **important bug** in single-server changes, fortunately with an easy fix. See the [raft-dev post](https://groups.google.com/d/msg/raft-dev/t4xj6dJTP6E/d2D9LrWRza8J).
 
+### Chapter 6: Client interaction
+
+- "it would extends its lease" should read "it would extend its lease" (Figure 6.3 caption).
+
 ### Chapter 7: Raft user study / Appendix A: User study materials
 
 - "Log Completeness" should read "Leader Completeness" (3x).
