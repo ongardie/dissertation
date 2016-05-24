@@ -398,7 +398,7 @@ recommend using it unless necessary to meet performance requirements.
 To use clocks instead of messages for read-only queries,
 the leader would use the normal heartbeat mechanism to maintain a lease.
 Once the leader's heartbeats were acknowledged by a majority of the
-cluster, it would extends its lease to $\textit{start} + \dfrac{\textit{election
+cluster, it would extend its lease to $\textit{start} + \dfrac{\textit{election
 timeout}}{\textit{clock drift bound}}$, since the followers
 shouldn't time out before then.
 While the leader held its lease, it would service read-only queries
